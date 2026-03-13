@@ -63,9 +63,10 @@ export KF_HOME=/Users/shandian/kungfu
  kfc run -c system -g master -n master &
  ps -ef|grep kfc 
  ps -ef|grep master  
+ sudo pkill -9 kfc  
  
  在 B窗口
- sudo /usr/local/bin/python3.9 /Users/shandian/out/kungfu/perf_test.py
+ /usr/local/bin/python3.9 /Users/shandian/out/kungfu/perf_test.py
 跳过 master 启动，使用已运行的实例
 [DEBUG] KF_HOME: /Users/shandian/kungfu/runtime
 [DEBUG] Master location: system/master/master/live

@@ -73,23 +73,10 @@ def csv_to_quote(csv_row):
     """将交易数据CSV行转换为Quote对象"""
     quote = lf.types.Quote()
 
-    # 转换为纳秒时间戳
+    # 只设置最必要的字段
     quote.data_time = int(csv_row['TIME']) * 1000000
-
-    # 设置股票代码
     quote.instrument_id = str(int(csv_row['SYMBOL']))
-    quote.exchange_id = "SSE"  # 交易所代码是字符串类型
-
-    # 设置价格和数量
     quote.last_price = float(csv_row['PRICE'])
-    quote.volume = int(csv_row['SIZE'])
-
-    # 设置其他必要字段
-    quote.open_interest = 0
-    quote.bid_price = quote.last_price - 0.01
-    quote.ask_price = quote.last_price + 0.01
-    quote.bid_volume = 100
-    quote.ask_volume = 100
 
     return quote
 
