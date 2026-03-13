@@ -18,6 +18,9 @@ from multiprocessing import Process, Queue
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # 非交互式后端
+import matplotlib.pyplot as plt
 
 # 强制刷新输出，确保调试信息立即显示
 sys.stdout.reconfigure(line_buffering=True)
@@ -191,7 +194,9 @@ class YijinjingPerformanceTest:
 
         # 转换 resource_data 为可序列化格式
         results = self.results.copy()
+        resource_data = None
         if results['resource_data'] is not None and not results['resource_data'].empty:
+            resource_data = results['resource_data'].copy()
             results['resource_data'] = results['resource_data'].to_dict('records')
         else:
             results['resource_data'] = []
@@ -200,7 +205,52 @@ class YijinjingPerformanceTest:
             json.dump(results, f, indent=2)
 
         print(f"结果已保存到: {result_file}")
+
+        # 生成资源监控图表
+        if resource_data is not None and not resource_data.empty:
+            chart_file = self._save_resource_chart(resource_data, results_dir, timestamp)
+            if chart_file:
+                print(f"资源监控图表已保存到: {chart_file}")
+
         return result_file
+
+    def _save_resource_chart(self, resource_data, results_dir, timestamp):
+        """保存资源监控图表"""
+        try:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+
+            # CPU使用率曲线
+            ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
+            ax1.set_ylabel('usage of CPU (%)')
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(loc='upper right')
+
+            # 内存使用率曲线
+            ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
+            ax2.set_xlabel('time (s)')
+            ax2.set_ylabel('usage of memory (%)')
+            ax2.grid(True, alpha=0.3)
+            ax2.legend(loc='upper right')
+
+            # 添加统计信息
+            cpu_avg = resource_data['cpu'].mean()
+            cpu_max = resource_data['cpu'].max()
+
+            ax1.text(0.02, 0.98, f'Avg: {cpu_avg:.1f}% | Max: {cpu_max:.1f}%',
+                    transform=ax1.transAxes, verticalalignment='top',
+                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+            plt.tight_layout()
+
+            chart_file = os.path.join(results_dir, f'{self.test_name}_{timestamp}.png')
+            plt.savefig(chart_file, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+            return chart_file
+
+        except Exception as e:
+            print(f"生成图表时出错: {e}")
+            return None
 
 
 # ============================================================================
@@ -259,22 +309,37 @@ class SequentialWriteTest(YijinjingPerformanceTest):
         print("开始资源监控...")
         self.monitor.start()
 
-        # 执行写入
-        print("开始写入数据...")
+        # 执行写入（批量写入）
+        print(f"开始写入数据... (批次大小: {batch_size})")
         start_time = time.time_ns()
         total_rows = 0
+        batch = []
+        current_time = time.time_ns()
 
         for csv_file in csv_files:
             df = pd.read_csv(csv_file)
             for _, row in df.iterrows():
                 quote = csv_to_quote(row)
-                writer.write(time.time_ns(), quote)
-                total_rows += 1
+                batch.append(quote)
+
+                # 批量写入
+                if len(batch) >= batch_size:
+                    for q in batch:
+                        writer.write(current_time, q)
+                        total_rows += 1
+                    batch.clear()
+                    current_time = time.time_ns()
 
             # 每处理100个文件输出进度
             if (csv_files.index(csv_file) + 1) % 100 == 0:
                 processed = csv_files.index(csv_file) + 1
                 print(f"已处理: {processed}/{file_count} 文件")
+
+        # 写入剩余数据
+        if batch:
+            for q in batch:
+                writer.write(current_time, q)
+                total_rows += 1
 
         end_time = time.time_ns()
 
@@ -314,7 +379,7 @@ class SequentialWriteTest(YijinjingPerformanceTest):
 # 并行写入测试
 # ============================================================================
 
-def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
+def parallel_worker_process(worker_id, csv_files, result_queue, kf_home, batch_size=10):
     """并行工作进程（模块级函数，可被 pickle）"""
     try:
         # 在子进程中重新导入模块
@@ -347,15 +412,30 @@ def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
 
         writer = apprentice.io_device.open_writer(0)
 
-        # 执行写入并测量
+        # 执行批量写入并测量
         start_time = time.time_ns()
         total_rows = 0
+        batch = []
+        current_time = time.time_ns()
 
         for csv_file in csv_files:
             df = pd.read_csv(csv_file)
             for _, row in df.iterrows():
                 quote = csv_to_quote(row)
-                writer.write(time.time_ns(), quote)
+                batch.append(quote)
+
+                # 批量写入
+                if len(batch) >= batch_size:
+                    for q in batch:
+                        writer.write(current_time, q)
+                        total_rows += 1
+                    batch.clear()
+                    current_time = time.time_ns()
+
+        # 写入剩余数据
+        if batch:
+            for q in batch:
+                writer.write(current_time, q)
                 total_rows += 1
 
         end_time = time.time_ns()
@@ -414,11 +494,11 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         result_queue = Queue()
         processes = []
 
-        print(f"启动 {parallel_count} 个工作进程...")
+        print(f"启动 {parallel_count} 个工作进程... (批次大小: {batch_size})")
         for i in range(parallel_count):
             p = Process(
                 target=parallel_worker_process,
-                args=(i, worker_files[i], result_queue, base_kf_home)
+                args=(i, worker_files[i], result_queue, base_kf_home, batch_size)
             )
             processes.append(p)
             p.start()
@@ -486,15 +566,33 @@ class ParallelWriteTest(YijinjingPerformanceTest):
 
 TEST_SCENARIOS = [
     # (场景名称, CSV文件数, 批次大小, 并行数, 测试类型)
-    ('S1_快速验证', 10, 1, 1, 'sequential'),
-    ('S2_顺序写入_小批量', 100, 1, 1, 'sequential'),
-    ('S3_顺序写入_中批量', 100, 10, 1, 'sequential'),
-    ('S4_顺序写入_大批量', 100, 50, 1, 'sequential'),
-    ('S5_并行写入_5进程', 100, 1, 5, 'parallel'),
-    ('S6_并行写入_10进程', 100, 1, 10, 'parallel'),
-    # 大规模测试需要较多时间，可选
-    # ('S7_大规模并行', 1000, 100, 5, 'parallel'),
-    # ('S8_超大规模并行', 1000, 100, 10, 'parallel'),
+    # === 顺序写入测试 ===
+    ('S1_快速验证', 10, 10, 1, 'sequential'),
+    ('S2_小规模_批次10', 10, 10, 1, 'sequential'),
+    ('S3_小规模_批次100', 10, 100, 1, 'sequential'),
+    ('S4_中规模_批次10', 1000, 10, 1, 'sequential'),
+    ('S5_中规模_批次100', 1000, 100, 1, 'sequential'),
+    ('S6_大规模_批次10', 3000, 10, 1, 'sequential'),
+    ('S7_大规模_批次100', 3000, 100, 1, 'sequential'),
+    ('S8_超大规模_批次10', 5000, 10, 1, 'sequential'),
+    ('S9_超大规模_批次100', 5000, 100, 1, 'sequential'),
+    # === 并行写入测试 ===
+    ('S10_并行5_小规模_批次10', 10, 10, 5, 'parallel'),
+    ('S11_并行5_小规模_批次100', 10, 100, 5, 'parallel'),
+    ('S12_并行5_中规模_批次10', 1000, 10, 5, 'parallel'),
+    ('S13_并行5_中规模_批次100', 1000, 100, 5, 'parallel'),
+    ('S14_并行5_大规模_批次10', 3000, 10, 5, 'parallel'),
+    ('S15_并行5_大规模_批次100', 3000, 100, 5, 'parallel'),
+    ('S16_并行5_超大规模_批次10', 5000, 10, 5, 'parallel'),
+    ('S17_并行5_超大规模_批次100', 5000, 100, 5, 'parallel'),
+    ('S18_并行10_小规模_批次10', 10, 10, 10, 'parallel'),
+    ('S19_并行10_小规模_批次100', 10, 100, 10, 'parallel'),
+    ('S20_并行10_中规模_批次10', 1000, 10, 10, 'parallel'),
+    ('S21_并行10_中规模_批次100', 1000, 100, 10, 'parallel'),
+    ('S22_并行10_大规模_批次10', 3000, 10, 10, 'parallel'),
+    ('S23_并行10_大规模_批次100', 3000, 100, 10, 'parallel'),
+    ('S24_并行10_超大规模_批次10', 5000, 10, 10, 'parallel'),
+    ('S25_并行10_超大规模_批次100', 5000, 100, 10, 'parallel'),
 ]
 
 
