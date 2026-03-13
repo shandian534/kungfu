@@ -52,14 +52,14 @@ export KF_LOG_LEVEL=info  # 减少日志对性能的影响
 
 ### 3.2 测试场景矩阵
 
-| 场景 | 数据规模 | 批次大小 | 并行数 | 写入模式 |
-|------|----------|----------|--------|----------|
-| S1 | 10 | - | 1 | 顺序写入 |
-| S2 | 1000 | - | 1 | 顺序写入 |
+| 场景 | 文件数 | 批次大小 | 并行数 | 写入模式 |
+|------|--------|----------|--------|----------|
+| S1 | 10 | 1 | 1 | 顺序写入 |
+| S2 | 1000 | 1 | 1 | 顺序写入 |
 | S3 | 1000 | 10 | 1 | 批量写入 |
 | S4 | 1000 | 100 | 1 | 批量写入 |
-| S5 | 1000 | - | 5 | 并行写入 |
-| S6 | 1000 | - | 10 | 并行写入 |
+| S5 | 1000 | 1 | 5 | 并行写入 |
+| S6 | 1000 | 1 | 10 | 并行写入 |
 | S7 | 3000 | 100 | 5 | 并行批量写入 |
 | S8 | 5000 | 100 | 10 | 并行批量写入 |
 
@@ -81,28 +81,125 @@ quote.last_price = 10.5
 # ... 其他字段
 ```
 
-### 4.2 数据生成
+### 4.2 CSV文件格式
+
+**真实交易数据格式**（来自 `/Users/shandian/kungfu/TRADE/`）：
+
+```csv
+DATE,SYMBOL,TIME,PRICE,SIZE
+2014-09-01,1,33900200,10.24,190
+2014-09-01,1,33900200,10.24,7600
+2014-09-01,1,33900200,10.24,2300
+```
+
+**字段说明**：
+- `DATE`: 日期
+- `SYMBOL`: 股票代码
+- `TIME`: 时间戳
+- `PRICE`: 价格
+- `SIZE`: 数量
+
+**数据概览**：
+- 总文件数：7034个CSV文件
+- 每个文件大小：从29字节到1.5MB不等
+- 数据时间范围：2014年的历史交易数据
+
+### 4.3 测试数据选择
 
 ```python
-import time
+import os
 import random
+import glob
 
-def generate_quotes(count):
-    """生成指定数量的测试行情数据"""
+class TradeDataSelector:
+    """从真实交易数据目录中选择测试文件"""
+
+    def __init__(self, trade_data_dir='/Users/shandian/kungfu/TRADE'):
+        self.trade_data_dir = trade_data_dir
+        self.all_files = sorted(glob.glob(os.path.join(trade_data_dir, '*.csv')))
+        print(f"发现 {len(self.all_files)} 个CSV文件")
+
+    def select_random_files(self, count):
+        """随机选择指定数量的CSV文件"""
+        if count > len(self.all_files):
+            print(f"警告：请求 {count} 个文件，但只有 {len(self.all_files)} 个可用")
+            count = len(self.all_files)
+
+        selected_files = random.sample(self.all_files, count)
+        print(f"随机选择了 {len(selected_files)} 个文件")
+        return selected_files
+
+    def select_sequential_files(self, count):
+        """按顺序选择指定数量的CSV文件"""
+        if count > len(self.all_files):
+            print(f"警告：请求 {count} 个文件，但只有 {len(self.all_files)} 个可用")
+            count = len(self.all_files)
+
+        selected_files = self.all_files[:count]
+        print(f"顺序选择了 {len(selected_files)} 个文件")
+        return selected_files
+```
+
+### 4.4 CSV数据读取和转换
+
+```python
+import pandas as pd
+from kungfu.__binding__ import longfist as lf
+
+def trade_csv_to_quote(csv_row):
+    """将交易数据CSV行转换为Quote对象"""
+    quote = lf.types.Quote()
+
+    # 解析日期和时间
+    date_str = csv_row['DATE']
+    time_val = int(csv_row['TIME'])
+
+    # 转换为纳秒时间戳（简化处理，实际需根据具体格式调整）
+    quote.data_time = time_val * 1000000  # 转换为纳秒
+
+    # 设置股票代码
+    quote.instrument_id = str(csv_row['SYMBOL'])
+    quote.exchange_id = lf.enums.Exchange.SSE  # 默认上海交易所
+
+    # 设置价格和数量
+    quote.last_price = float(csv_row['PRICE'])
+    quote.volume = int(csv_row['SIZE'])
+
+    # 设置其他必要字段
+    quote.open_interest = 0
+    quote.bid_price1 = quote.last_price - 0.01
+    quote.ask_price1 = quote.last_price + 0.01
+    quote.bid_volume1 = 100
+    quote.ask_volume1 = 100
+
+    return quote
+
+def read_trade_csv_file(file_path):
+    """读取单个交易数据CSV文件并转换为Quote对象列表"""
+    df = pd.read_csv(file_path)
     quotes = []
-    base_time = time.time_ns()
-
-    for i in range(count):
-        quote = lf.types.Quote()
-        quote.data_time = base_time + i * 1000000  # 1ms间隔
-        quote.instrument_id = f"INSTR_{i % 100:06d}"
-        quote.exchange_id = lf.enums.Exchange.SSE
-        quote.last_price = random.uniform(10.0, 100.0)
-        quote.volume = random.randint(100, 10000)
-        # 设置其他必要字段...
+    for _, row in df.iterrows():
+        quote = trade_csv_to_quote(row)
         quotes.append(quote)
-
     return quotes
+```
+
+### 4.5 可选：数据生成器（用于生成测试数据）
+
+如果真实数据不足或需要特定格式的测试数据，可使用以下生成器：
+
+```python
+class CSVDataGenerator:
+    """CSV测试数据生成器（备用方案）"""
+
+    def __init__(self, output_dir):
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+
+    def generate_csv_files(self, file_count, rows_per_file=100):
+        """生成指定数量的CSV文件"""
+        print(f"正在生成 {file_count} 个CSV文件，每个文件 {rows_per_file} 行...")
+        # ... 生成逻辑 ...
 ```
 
 ## 5. 测试代码框架
@@ -205,34 +302,44 @@ class YijinjingPerformanceTest:
         writer = yjj.writer(location, 0, False)
         return writer
 
-    def run_test(self, data_count, batch_size=1, parallel_count=1):
+    def run_test(self, csv_files, batch_size=1, parallel_count=1):
         """运行测试（子类实现）"""
         raise NotImplementedError
 
-    def measure_write(self, writer, quotes, batch_size=1):
-        """测量写入性能"""
+    def measure_write_from_csv(self, writer, csv_files, batch_size=1):
+        """从CSV文件读取并测量写入性能"""
         start_time = time.time_ns()
+        total_rows = 0
 
         if batch_size == 1:
-            # 顺序写入
-            for quote in quotes:
-                writer.write(time.time_ns(), quote)
-        else:
-            # 批量写入
-            for i in range(0, len(quotes), batch_size):
-                batch = quotes[i:i+batch_size]
-                for quote in batch:
+            # 顺序处理每个CSV文件
+            for csv_file in csv_files:
+                df = pd.read_csv(csv_file)
+                for _, row in df.iterrows():
+                    quote = csv_to_quote(row)
                     writer.write(time.time_ns(), quote)
+                    total_rows += 1
+        else:
+            # 批量处理CSV文件
+            for i in range(0, len(csv_files), batch_size):
+                batch_files = csv_files[i:i+batch_size]
+                for csv_file in batch_files:
+                    df = pd.read_csv(csv_file)
+                    for _, row in df.iterrows():
+                        quote = csv_to_quote(row)
+                        writer.write(time.time_ns(), quote)
+                        total_rows += 1
 
         end_time = time.time_ns()
 
         # 计算指标
         total_time_s = (end_time - start_time) / 1e9
-        avg_latency_us = (end_time - start_time) / len(quotes) / 1000
-        throughput_ops = len(quotes) / total_time_s
+        avg_latency_us = (end_time - start_time) / total_rows / 1000
+        throughput_ops = total_rows / total_time_s
 
         return {
             'total_time': total_time_s,
+            'total_rows': total_rows,
             'avg_latency_us': avg_latency_us,
             'throughput_ops': throughput_ops
         }
@@ -268,31 +375,29 @@ class SequentialWriteTest(YijinjingPerformanceTest):
     def __init__(self, kf_home=None):
         super().__init__('sequential_write', kf_home)
 
-    def run_test(self, data_count, batch_size=1, parallel_count=1):
+    def run_test(self, csv_files, batch_size=1, parallel_count=1):
         """运行顺序写入测试"""
+        file_count = len(csv_files)
+
         print(f"\n=== 顺序写入测试 ===")
-        print(f"数据量: {data_count}, 批次大小: {batch_size}")
+        print(f"CSV文件数: {file_count}, 批次大小: {batch_size}")
 
         # 设置环境
         location, locator = self.setup_location()
         writer = self.create_writer(location)
 
-        # 生成测试数据
-        quotes = generate_quotes(data_count)
-        print(f"生成 {len(quotes)} 条测试数据")
-
         # 开始监控
         self.monitor.start()
 
         # 执行写入
-        perf_metrics = self.measure_write(writer, quotes, batch_size)
+        perf_metrics = self.measure_write_from_csv(writer, csv_files, batch_size)
 
         # 停止监控
         self.monitor.stop()
 
         # 记录结果
         self.results.update({
-            'data_count': data_count,
+            'data_count': file_count,
             'batch_size': batch_size,
             'parallel_count': 1,
             **perf_metrics,
@@ -301,13 +406,14 @@ class SequentialWriteTest(YijinjingPerformanceTest):
 
         # 打印结果
         print(f"总耗时: {perf_metrics['total_time']:.2f}秒")
-        print(f"平均延迟: {perf_metrics['avg_latency_us']:.2f}微秒")
         print(f"吞吐量: {perf_metrics['throughput_ops']:.0f} ops")
+        print(f"平均延迟: {perf_metrics['avg_latency_us']:.2f}微秒")
 
         return self.results
 ```
 
 ### 5.3 并行写入测试
+
 
 ```python
 class ParallelWriteTest(YijinjingPerformanceTest):
@@ -316,7 +422,7 @@ class ParallelWriteTest(YijinjingPerformanceTest):
     def __init__(self, kf_home=None):
         super().__init__('parallel_write', kf_home)
 
-    def worker_process(self, worker_id, data_count, batch_size, result_queue):
+    def worker_process(self, worker_id, csv_files, batch_size, result_queue):
         """工作进程"""
         try:
             # 每个进程创建独立的 location
@@ -326,30 +432,27 @@ class ParallelWriteTest(YijinjingPerformanceTest):
             )
             writer = self.create_writer(location)
 
-            # 生成数据
-            quotes = generate_quotes(data_count)
-
             # 执行写入并测量
             start_time = time.time_ns()
+            total_rows = 0
 
-            if batch_size == 1:
-                for quote in quotes:
+            for csv_file in csv_files:
+                df = pd.read_csv(csv_file)
+                for _, row in df.iterrows():
+                    quote = csv_to_quote(row)
                     writer.write(time.time_ns(), quote)
-            else:
-                for i in range(0, len(quotes), batch_size):
-                    batch = quotes[i:i+batch_size]
-                    for quote in batch:
-                        writer.write(time.time_ns(), quote)
+                    total_rows += 1
 
             end_time = time.time_ns()
 
             total_time_s = (end_time - start_time) / 1e9
-            avg_latency_us = (end_time - start_time) / len(quotes) / 1000
-            throughput_ops = len(quotes) / total_time_s
+            avg_latency_us = (end_time - start_time) / total_rows / 1000
+            throughput_ops = total_rows / total_time_s
 
             result_queue.put({
                 'worker_id': worker_id,
                 'total_time': total_time_s,
+                'total_rows': total_rows,
                 'avg_latency_us': avg_latency_us,
                 'throughput_ops': throughput_ops
             })
@@ -357,10 +460,26 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         except Exception as e:
             result_queue.put({'worker_id': worker_id, 'error': str(e)})
 
-    def run_test(self, data_count, batch_size=1, parallel_count=5):
+    def run_test(self, csv_files, batch_size=1, parallel_count=5):
         """运行并行写入测试"""
+        file_count = len(csv_files)
+
         print(f"\n=== 并行写入测试 ===")
-        print(f"数据量: {data_count}, 批次大小: {batch_size}, 并行数: {parallel_count}")
+        print(f"CSV文件数: {file_count}, 批次大小: {batch_size}, 并行数: {parallel_count}")
+
+        # 分配CSV文件给各个进程
+        files_per_worker = len(csv_files) // parallel_count
+        worker_files = []
+
+        for i in range(parallel_count):
+            start_idx = i * files_per_worker
+            if i == parallel_count - 1:
+                # 最后一个worker处理剩余所有文件
+                end_idx = len(csv_files)
+            else:
+                end_idx = start_idx + files_per_worker
+
+            worker_files.append(csv_files[start_idx:end_idx])
 
         # 开始监控
         self.monitor.start()
@@ -372,7 +491,7 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         for i in range(parallel_count):
             p = multiprocessing.Process(
                 target=self.worker_process,
-                args=(i, data_count, batch_size, result_queue)
+                args=(i, worker_files[i], batch_size, result_queue)
             )
             processes.append(p)
             p.start()
@@ -391,10 +510,10 @@ class ParallelWriteTest(YijinjingPerformanceTest):
 
         # 计算总体指标
         total_ops = sum(r.get('throughput_ops', 0) for r in results)
-        total_data_count = sum(r.get('data_count', data_count) for r in results)
+        total_rows_all = sum(r.get('total_rows', 0) for r in results)
 
         self.results.update({
-            'data_count': total_data_count,
+            'data_count': file_count,
             'batch_size': batch_size,
             'parallel_count': parallel_count,
             'total_time': max(r.get('total_time', 0) for r in results),
@@ -405,7 +524,7 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         })
 
         # 打印结果
-        print(f"总数据量: {total_data_count}")
+        print(f"总CSV文件数: {file_count}")
         print(f"总吞吐量: {total_ops:.0f} ops")
         print(f"平均延迟: {self.results['avg_latency_us']:.2f}微秒")
 
@@ -418,11 +537,13 @@ class ParallelWriteTest(YijinjingPerformanceTest):
 
 | 指标 | 说明 | 计算方法 |
 |------|------|----------|
-| **写入延迟** | 单条数据写入的平均时间 | 总耗时 / 数据条数 |
-| **吞吐量** | 每秒写入的数据条数 | 数据条数 / 总耗时 |
+| **写入延迟** | 单条数据写入的平均时间 | 总耗时 / 实际处理行数 |
+| **吞吐量** | 每秒写入的数据条数 | 实际处理行数 / 总耗时 |
 | **CPU使用率** | 测试期间CPU占用百分比 | psutil监控 |
 | **内存使用率** | 测试期间内存占用百分比 | psutil监控 |
 | **扩展系数** | 并行效率 | 并行吞吐量 / 串行吞吐量 |
+
+**注意**：由于真实交易数据的每个CSV文件行数不固定，测试时只控制CSV文件数量，不控制总行数。
 
 ### 6.2 图表绘制
 
@@ -445,16 +566,15 @@ class PerformanceReporter:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
         # CPU使用率曲线
-        ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='CPU使用率 (%)')
-        ax1.set_ylabel('CPU使用率 (%)')
-        ax1.set_title(f"{test_result['test_name']} - 资源使用情况")
+        ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
+        ax1.set_ylabel('usage of CPU (%)')
         ax1.grid(True)
         ax1.legend()
 
         # 内存使用率曲线
-        ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='内存使用率 (%)')
-        ax2.set_xlabel('时间 (秒)')
-        ax2.set_ylabel('内存使用率 (%)')
+        ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
+        ax2.set_xlabel('time (s)')
+        ax2.set_ylabel('usage of memory (%)')
         ax2.grid(True)
         ax2.legend()
 
@@ -522,7 +642,7 @@ class PerformanceReporter:
                 y = [r['throughput_ops'] for r in data]
                 ax.plot(x, y, marker='o', label=label, color=color, linewidth=2)
 
-        ax.set_xlabel('数据规模 (条)')
+        ax.set_xlabel('CSV文件数')
         ax.set_ylabel('吞吐量 (ops)')
         ax.set_title('不同并行数下的扩展性')
         ax.legend()
@@ -606,9 +726,13 @@ def run_all_tests():
 
     all_results = []
 
+    # 使用真实交易数据
+    trade_data_dir = '/Users/shandian/kungfu/TRADE'
+    selector = TradeDataSelector(trade_data_dir)
+
     # 测试场景配置
     test_scenarios = [
-        # (数据量, 批次大小, 并行数, 测试类)
+        # (CSV文件数, 批次大小, 并行数, 测试类)
         (10, 1, 1, 'sequential'),
         (1000, 1, 1, 'sequential'),
         (1000, 10, 1, 'sequential'),
@@ -619,14 +743,25 @@ def run_all_tests():
         (5000, 100, 10, 'parallel'),
     ]
 
-    for data_count, batch_size, parallel_count, mode in test_scenarios:
+    # 找出最大文件数
+    max_file_count = max(scenario[0] for scenario in test_scenarios)
+
+    # 随机选择所需数量的CSV文件
+    print(f"\n从 {trade_data_dir} 随机选择测试数据...")
+    selected_files = selector.select_random_files(max_file_count)
+    print(f"已选择 {len(selected_files)} 个文件用于测试")
+
+    for file_count, batch_size, parallel_count, mode in test_scenarios:
         try:
+            # 获取对应数量的CSV文件
+            csv_files = selected_files[:file_count]
+
             if mode == 'sequential':
                 test = SequentialWriteTest(kf_home)
             else:
                 test = ParallelWriteTest(kf_home)
 
-            result = test.run_test(data_count, batch_size, parallel_count)
+            result = test.run_test(csv_files, batch_size, parallel_count)
             all_results.append(result)
 
             # 保存单次结果
@@ -648,30 +783,29 @@ def run_all_tests():
     print("=" * 60)
 
     return all_results
-
-
-if __name__ == '__main__':
-    # 运行测试
-    results = run_all_tests()
-
-    # 打印汇总
-    print("\n=== 测试结果汇总 ===")
-    for r in results:
-        print(f"\n{r['test_name']}:")
-        print(f"  数据量: {r['data_count']}, 批次: {r['batch_size']}, 并行: {r['parallel_count']}")
-        print(f"  吞吐量: {r['throughput_ops']:.0f} ops")
-        print(f"  延迟: {r['avg_latency_us']:.2f} μs")
 ```
 
 ### 7.2 快速测试脚本
 
 ```python
 def quick_test():
-    """快速测试 - 验证环境"""
+    """快速测试 - 验证环境和数据"""
     kf_home = os.path.expanduser('~/kungfu_perf_test')
 
+    # 使用真实交易数据
+    trade_data_dir = '/Users/shandian/kungfu/TRADE'
+    selector = TradeDataSelector(trade_data_dir)
+
+    # 随机选择少量文件进行快速测试
+    csv_files = selector.select_random_files(10)
+
+    # 显示选择的文件信息
+    print("\n选择的文件：")
+    for f in csv_files[:3]:  # 显示前3个
+        print(f"  {os.path.basename(f)}")
+
     test = SequentialWriteTest(kf_home)
-    result = test.run_test(data_count=100, batch_size=1)
+    result = test.run_test(csv_files, batch_size=1)
 
     print("\n快速测试完成，环境验证成功！")
     return result
@@ -686,18 +820,26 @@ def quick_test():
 易筋经时间序列数据库性能测试
 ==========================================================
 
+从 /Users/shandian/kungfu/TRADE 随机选择测试数据...
+发现 7034 个CSV文件
+随机选择了 5000 个文件
+
 === 顺序写入测试 ===
-数据量: 1000, 批次大小: 1
-生成 1000 条测试数据
-总耗时: 2.45秒
-平均延迟: 2450.00微秒
-吞吐量: 408 ops
+CSV文件数: 10, 批次大小: 1
+总耗时: 0.25秒
+吞吐量: 1800 ops
+平均延迟: 555.00微秒
+
+=== 顺序写入测试 ===
+CSV文件数: 1000, 批次大小: 1
+总耗时: 24.50秒
+吞吐量: 1835 ops
+平均延迟: 544.00微秒
 
 === 并行写入测试 ===
-数据量: 1000, 批次大小: 1, 并行数: 5
-总数据量: 5000
-总吞吐量: 1850 ops
-平均延迟: 2700.00微秒
+CSV文件数: 1000, 批次大小: 1, 并行数: 5
+总吞吐量: 7850 ops
+平均延迟: 637.00微秒
 
 ==========================================================
 测试完成!
@@ -706,7 +848,27 @@ def quick_test():
 
 ### 8.2 生成的图表
 
-1. **资源使用图**：CPU和内存随时间变化曲线
+**每个测试场景都会生成对应的资源监控图**：
+
+```python
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+
+# CPU使用率曲线
+ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
+ax1.set_ylabel('usage of CPU (%)')
+ax1.grid(True)
+ax1.legend()
+
+# 内存使用率曲线
+ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
+ax2.set_xlabel('time (s)')
+ax2.set_ylabel('usage of memory (%)')
+ax2.grid(True)
+ax2.legend()
+```
+
+**生成的图表包括**：
+1. **资源使用图**：每个测试场景的CPU和内存使用曲线
 2. **性能对比图**：不同场景的吞吐量和延迟对比
 3. **扩展性图**：不同并行数下的性能扩展情况
 
@@ -714,7 +876,7 @@ def quick_test():
 
 ```
 ~/kungfu_perf_test/
-├── runtime/              # 运行时数据
+├── runtime/              # 运行时数据（journal文件）
 ├── test_results/         # 测试结果JSON
 ├── reports/              # 测试报告
 │   ├── sequential_write_resource_20260313_150000.png
@@ -723,6 +885,8 @@ def quick_test():
 │   ├── scalability_20260313_150010.png
 │   └── test_summary_20260313_150010.csv
 ```
+
+**注意**：真实交易数据位于 `/Users/shandian/kungfu/TRADE/`，测试时随机选择文件使用。
 
 ## 9. 测试注意事项
 
