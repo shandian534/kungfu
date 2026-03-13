@@ -56,7 +56,32 @@ pip install pandas matplotlib psutil
 
 ```bash
 # 快速验证测试（10个文件）
-python3 perf_test.py quick
+正确：
+在 A窗口
+在项目主目录下（kungfu)
+export KF_HOME=/Users/shandian/kungfu 
+ kfc run -c system -g master -n master &
+ ps -ef|grep kfc 
+ ps -ef|grep master  
+ 
+ 在 B窗口
+ sudo /usr/local/bin/python3.9 /Users/shandian/out/kungfu/perf_test.py
+跳过 master 启动，使用已运行的实例
+[DEBUG] KF_HOME: /Users/shandian/kungfu/runtime
+[DEBUG] Master location: system/master/master/live
+[DEBUG] Master pub.nn path: /Users/shandian/kungfu/runtime/system/master/master/nn/live/pub.nn
+[DEBUG] Apprentice location: strategy/perf_test/app/live
+[DEBUG] Master socket directory: /Users/shandian/kungfu/runtime/system/master/master/nn/live
+[DEBUG] Master socket exists: False
+[DEBUG] Socket files in directory: []
+[DEBUG] Creating apprentice with low_latency=True
+初始化 apprentice...
+[DEBUG] Starting apprentice.setup() - this will try to connect to master and register...
+Apprentice 注册成功!
+写入完成，耗时: 6.08秒
+
+
+
 
 # 单次测试（指定文件数）
 python3 perf_test.py test 100      # 测试100个文件
