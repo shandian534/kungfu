@@ -78,7 +78,7 @@ def csv_to_quote(csv_row):
 
     # 设置股票代码
     quote.instrument_id = str(int(csv_row['SYMBOL']))
-    quote.exchange_id = lf.enums.Exchange.SSE
+    quote.exchange_id = "SSE"  # 交易所代码是字符串类型
 
     # 设置价格和数量
     quote.last_price = float(csv_row['PRICE'])
@@ -86,10 +86,10 @@ def csv_to_quote(csv_row):
 
     # 设置其他必要字段
     quote.open_interest = 0
-    quote.bid_price1 = quote.last_price - 0.01
-    quote.ask_price1 = quote.last_price + 0.01
-    quote.bid_volume1 = 100
-    quote.ask_volume1 = 100
+    quote.bid_price = quote.last_price - 0.01
+    quote.ask_price = quote.last_price + 0.01
+    quote.bid_volume = 100
+    quote.ask_volume = 100
 
     return quote
 
@@ -226,7 +226,7 @@ class SequentialWriteTest(YijinjingPerformanceTest):
     def __init__(self, kf_home=None):
         super().__init__('sequential_write', kf_home)
 
-    def run_test(self, csv_files, batch_size=1):
+    def run_test(self, csv_files, batch_size=1, parallel_count=1):
         """运行顺序写入测试"""
         file_count = len(csv_files)
 
@@ -504,6 +504,48 @@ TEST_SCENARIOS = [
 # 主测试流程
 # ============================================================================
 
+def run_single_scenario(scenario_name, file_count, batch_size, parallel_count, mode, csv_files, kf_home, result_queue):
+    """运行单个场景（在子进程中）"""
+    try:
+        # 在子进程中重新导入模块，因为功夫的限制
+        import sys
+        sys.path.insert(0, '/Users/shandian/out/kungfu/framework/core/build/python')
+        import pykungfu
+        lf = pykungfu.longfist
+        yjj = pykungfu.yijinjing
+        import pandas as pd
+        import time
+        import os
+
+        # 获取对应数量的CSV文件
+        csv_files = csv_files[:file_count]
+
+        if mode == 'sequential':
+            test = SequentialWriteTest(kf_home)
+        else:
+            test = ParallelWriteTest(kf_home)
+
+        result = test.run_test(csv_files, batch_size, parallel_count)
+
+        if result:
+            result['scenario_name'] = scenario_name
+            # 保存单次结果
+            test.save_results()
+
+        result_queue.put(('success', result))
+
+    except Exception as e:
+        result_queue.put(('error', (scenario_name, str(e))))
+
+    finally:
+        # 清理 apprentice
+        if 'test' in locals() and test.apprentice is not None:
+            try:
+                del test.apprentice
+            except:
+                pass
+
+
 def run_all_tests(scenario_indices=None, kf_home='/Users/shandian/kungfu'):
     """运行所有测试场景"""
     print("=" * 60)
@@ -537,36 +579,29 @@ def run_all_tests(scenario_indices=None, kf_home='/Users/shandian/kungfu'):
     os.makedirs(results_dir, exist_ok=True)
 
     for scenario_name, file_count, batch_size, parallel_count, mode in scenarios:
-        try:
-            print(f"\n{'#'*60}")
-            print(f"# 运行场景: {scenario_name}")
-            print(f"{'#'*60}")
+        print(f"\n{'#'*60}")
+        print(f"# 运行场景: {scenario_name}")
+        print(f"{'#'*60}")
 
-            # 获取对应数量的CSV文件
-            csv_files = selected_files[:file_count]
+        # 使用子进程运行每个场景（因为每个进程只能有一个 hero 实例）
+        result_queue = Queue()
+        p = Process(
+            target=run_single_scenario,
+            args=(scenario_name, file_count, batch_size, parallel_count, mode, selected_files, kf_home, result_queue)
+        )
+        p.start()
+        p.join()
 
-            if mode == 'sequential':
-                test = SequentialWriteTest(kf_home)
-            else:
-                test = ParallelWriteTest(kf_home)
+        # 获取结果
+        if not result_queue.empty():
+            status, data = result_queue.get()
+            if status == 'success' and data:
+                all_results.append(data)
+            elif status == 'error':
+                print(f"测试失败: {data[1]}")
 
-            result = test.run_test(csv_files, batch_size, parallel_count)
-
-            if result:
-                result['scenario_name'] = scenario_name
-                all_results.append(result)
-
-                # 保存单次结果
-                test.save_results()
-
-            # 短暂休息，避免资源占用
-            time.sleep(2)
-
-        except Exception as e:
-            print(f"测试失败: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
+        # 短暂休息，避免资源占用
+        time.sleep(2)
 
     # 生成汇总报告
     if all_results:
@@ -654,10 +689,10 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='易筋经性能测试')
-    parser.add_argument('--mode', choices=['quick', 'all', 'scenario'], default='scenario',
-                        help='测试模式: quick(快速验证), all(所有场景), scenario(指定场景)')
-    parser.add_argument('--scenarios', type=str, default='0,1',
-                        help='场景索引列表，逗号分隔，例如: 0,1,2')
+    parser.add_argument('--mode', choices=['quick', 'scenario'], default='scenario',
+                        help='测试模式: quick(快速验证), scenario(指定单个场景)')
+    parser.add_argument('--scenario', type=int, default=0,
+                        help='场景索引: 0=快速验证(10文件), 1=小批量(100文件), 2=中批量, 3=大批量, 4=并行5进程, 5=并行10进程')
     parser.add_argument('--kf-home', type=str, default='/Users/shandian/kungfu',
                         help='KF_HOME 路径')
 
@@ -665,11 +700,37 @@ def main():
 
     if args.mode == 'quick':
         quick_test(args.kf_home)
-    elif args.mode == 'all':
-        run_all_tests(kf_home=args.kf_home)
     else:  # scenario
-        indices = [int(i.strip()) for i in args.scenarios.split(',')]
-        run_all_tests(scenario_indices=indices, kf_home=args.kf_home)
+        # 每次只运行一个场景
+        if args.scenario >= len(TEST_SCENARIOS):
+            print(f"错误: 场景索引 {args.scenario} 不存在，最大为 {len(TEST_SCENARIOS) - 1}")
+            return
+
+        scenario_name, file_count, batch_size, parallel_count, mode = TEST_SCENARIOS[args.scenario]
+        print(f"\n将运行场景 {args.scenario}: {scenario_name}")
+        print(f"  文件数: {file_count}, 批次: {batch_size}, 并行: {parallel_count}, 类型: {mode}")
+
+        # 准备数据
+        trade_data_dir = os.path.join(args.kf_home, 'TRADE')
+        if not os.path.exists(trade_data_dir):
+            print(f"错误: 交易数据目录不存在: {trade_data_dir}")
+            return
+
+        selector = TradeDataSelector(trade_data_dir)
+        selected_files = selector.select_sequential_files(file_count)
+
+        # 运行单个场景
+        if mode == 'sequential':
+            test = SequentialWriteTest(args.kf_home)
+        else:
+            test = ParallelWriteTest(args.kf_home)
+
+        result = test.run_test(selected_files, batch_size, parallel_count)
+
+        if result:
+            result['scenario_name'] = scenario_name
+            test.save_results()
+            print(f"\n场景 '{scenario_name}' 完成！")
 
 
 if __name__ == '__main__':

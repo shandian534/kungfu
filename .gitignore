@@ -38,3 +38,4 @@ dist/
 *.xls
 *.xlsx
 /.claude/settings.local.json
+/run_all_scenarios.sh

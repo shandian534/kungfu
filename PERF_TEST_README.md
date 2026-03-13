@@ -1,5 +1,9 @@
 # 易筋经性能测试使用说明
 
+## ⚠️ 重要限制
+
+**每次只能运行一个场景**，因为功夫框架限制每个进程只能有一个 hero 实例。
+
 ## 快速开始
 
 ### 1. 启动 Master
@@ -13,7 +17,7 @@ kfc run -c system -g master -n master &
 
 ### 2. 运行快速测试
 
-验证环境和数据是否正常：
+验证环境和数据是否正常（10个文件）：
 
 ```bash
 python3.9 perf_test_full.py --mode quick
@@ -21,16 +25,21 @@ python3.9 perf_test_full.py --mode quick
 
 ### 3. 运行指定场景
 
-运行场景 S1 和 S2（快速验证和顺序写入）：
-
 ```bash
-python3.9 perf_test_full.py --mode scenario --scenarios 0,1
-```
+# 场景 0: 快速验证 (10文件)
+python3.9 perf_test_full.py --scenario 0
 
-### 4. 运行所有场景
+# 场景 1: 小批量顺序写入 (100文件)
+python3.9 perf_test_full.py --scenario 1
 
-```bash
-python3.9 perf_test_full.py --mode all
+# 场景 2: 中批量顺序写入 (100文件, 批次10)
+python3.9 perf_test_full.py --scenario 2
+
+# 场景 4: 并行写入 5进程 (100文件)
+python3.9 perf_test_full.py --scenario 4
+
+# 场景 5: 并行写入 10进程 (100文件)
+python3.9 perf_test_full.py --scenario 5
 ```
 
 ## 测试场景说明
@@ -48,37 +57,37 @@ python3.9 perf_test_full.py --mode all
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
-| `--mode` | 测试模式: quick/all/scenario | scenario |
-| `--scenarios` | 场景索引，逗号分隔 | 0,1 |
+| `--mode` | 测试模式: quick/scenario | scenario |
+| `--scenario` | 场景索引 (0-5) | 0 |
 | `--kf-home` | KF_HOME 路径 | /Users/shandian/kungfu |
+
+## 批量运行多个场景
+
+由于框架限制，需要分别运行每个场景：
+
+```bash
+#!/bin/bash
+# 运行所有场景的脚本
+
+for i in 0 1 2 3 4 5; do
+    echo "运行场景 $i..."
+    python3.9 perf_test_full.py --scenario $i
+    echo "场景 $i 完成，等待 3 秒..."
+    sleep 3
+done
+
+echo "所有场景完成！"
+```
+
+保存为 `run_all.sh`，然后执行：
+```bash
+chmod +x run_all.sh
+./run_all.sh
+```
 
 ## 输出说明
 
 ### 控制台输出
-
-测试过程中会显示：
-- 场景名称和配置
-- 处理进度
-- 实时资源监控
-- 测试结果汇总
-
-### 结果文件
-
-所有结果保存在 `/Users/shandian/kungfu/test_results/` 目录：
-
-- `{test_name}_{timestamp}.json` - 单个测试的详细结果
-- `test_summary_{timestamp}.csv` - 所有测试的汇总表
-
-### 性能指标
-
-| 指标 | 说明 |
-|------|------|
-| 总行数 | 写入的总数据条数 |
-| 总耗时 | 测试运行时间（秒） |
-| 平均延迟 | 单条数据写入平均时间（微秒） |
-| 吞吐量 | 每秒写入数据条数 (ops) |
-
-## 示例输出
 
 ```
 ==============================================================
@@ -101,12 +110,19 @@ Apprentice 注册成功!
 ==============================================================
 ```
 
-## 注意事项
+### 结果文件
 
-1. **Master 必须先启动**：测试脚本依赖 master 进程运行
-2. **路径问题**：确保 KF_HOME 环境变量设置正确
-3. **数据目录**：默认使用 `/Users/shandian/kungfu/TRADE` 中的数据
-4. **资源占用**：并行测试会创建多个进程，注意系统资源
+保存在 `/Users/shandian/kungfu/test_results/`：
+- `sequential_write_YYYYMMDD_HHMMSS.json` - 详细结果（JSON格式）
+
+### 性能指标
+
+| 指标 | 说明 |
+|------|------|
+| 总行数 | 写入的总数据条数 |
+| 总耗时 | 测试运行时间（秒） |
+| 平均延迟 | 单条数据写入平均时间（微秒） |
+| 吞吐量 | 每秒写入数据条数 (ops) |
 
 ## 故障排查
 
@@ -116,7 +132,7 @@ Apprentice 注册成功!
 错误: Master socket 不存在: /path/to/pub.nn
 ```
 
-解决：先启动 master 进程
+**解决**：先启动 master
 ```bash
 export KF_HOME=/Users/shandian/kungfu
 kfc run -c system -g master -n master &
@@ -128,7 +144,19 @@ kfc run -c system -g master -n master &
 [ error ] [apprentice.cpp:183#operator()] app register timeout
 ```
 
-解决：检查 KF_HOME 路径是否一致，master 是否正常运行
+**解决**：检查 KF_HOME 路径一致性
+```bash
+# 确保 master 和测试使用相同的路径
+export KF_HOME=/Users/shandian/kungfu
+```
+
+### 只能运行一个场景
+
+```
+kungfu can only have one hero instance per process
+```
+
+**解决**：每次运行后退出，下次运行会启动新进程。使用批量脚本运行多个场景。
 
 ### 数据目录不存在
 
@@ -136,4 +164,7 @@ kfc run -c system -g master -n master &
 错误: 交易数据目录不存在: /path/to/TRADE
 ```
 
-解决：检查数据目录路径，或修改脚本中的 `trade_data_dir`
+**解决**：检查数据目录或修改 `kf_home` 参数
+```bash
+python3.9 perf_test_full.py --kf-home /your/kungfu/path --scenario 0
+```
