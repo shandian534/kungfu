@@ -314,62 +314,73 @@ class SequentialWriteTest(YijinjingPerformanceTest):
 # 并行写入测试
 # ============================================================================
 
+def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
+    """并行工作进程（模块级函数，可被 pickle）"""
+    try:
+        # 在子进程中重新导入模块
+        import sys
+        sys.path.insert(0, '/Users/shandian/out/kungfu/framework/core/build/python')
+        import pykungfu
+        lf = pykungfu.longfist
+        yjj = pykungfu.yijinjing
+        import pandas as pd
+        import time
+        import os
+
+        # 设置进程内的 kf_home
+        if not kf_home.endswith('runtime'):
+            kf_home = os.path.join(kf_home, 'runtime')
+
+        # 每个进程创建独立的 location
+        locator = yjj.locator(kf_home)
+        location = yjj.location(
+            lf.enums.mode.LIVE,
+            lf.enums.category.STRATEGY,
+            'perf_test',
+            f'worker_{worker_id}',
+            locator
+        )
+
+        # 创建 apprentice
+        apprentice = yjj.apprentice(location, low_latency=True)
+        apprentice.setup()
+
+        writer = apprentice.io_device.open_writer(0)
+
+        # 执行写入并测量
+        start_time = time.time_ns()
+        total_rows = 0
+
+        for csv_file in csv_files:
+            df = pd.read_csv(csv_file)
+            for _, row in df.iterrows():
+                quote = csv_to_quote(row)
+                writer.write(time.time_ns(), quote)
+                total_rows += 1
+
+        end_time = time.time_ns()
+
+        total_time_s = (end_time - start_time) / 1e9
+        avg_latency_us = (end_time - start_time) / total_rows / 1000 if total_rows > 0 else 0
+        throughput_ops = total_rows / total_time_s if total_time_s > 0 else 0
+
+        result_queue.put({
+            'worker_id': worker_id,
+            'total_time': total_time_s,
+            'total_rows': total_rows,
+            'avg_latency_us': avg_latency_us,
+            'throughput_ops': throughput_ops
+        })
+
+    except Exception as e:
+        result_queue.put({'worker_id': worker_id, 'error': str(e)})
+
+
 class ParallelWriteTest(YijinjingPerformanceTest):
     """并行写入测试"""
 
     def __init__(self, kf_home=None):
         super().__init__('parallel_write', kf_home)
-
-    def worker_process(self, worker_id, csv_files, result_queue, kf_home):
-        """工作进程"""
-        try:
-            # 设置进程内的 kf_home
-            if not kf_home.endswith('runtime'):
-                kf_home = os.path.join(kf_home, 'runtime')
-
-            # 每个进程创建独立的 location
-            locator = yjj.locator(kf_home)
-            location = yjj.location(
-                lf.enums.mode.LIVE,
-                lf.enums.category.STRATEGY,
-                'perf_test',
-                f'worker_{worker_id}',
-                locator
-            )
-
-            # 创建 apprentice
-            apprentice = yjj.apprentice(location, low_latency=True)
-            apprentice.setup()
-
-            writer = apprentice.io_device.open_writer(0)
-
-            # 执行写入并测量
-            start_time = time.time_ns()
-            total_rows = 0
-
-            for csv_file in csv_files:
-                df = pd.read_csv(csv_file)
-                for _, row in df.iterrows():
-                    quote = csv_to_quote(row)
-                    writer.write(time.time_ns(), quote)
-                    total_rows += 1
-
-            end_time = time.time_ns()
-
-            total_time_s = (end_time - start_time) / 1e9
-            avg_latency_us = (end_time - start_time) / total_rows / 1000 if total_rows > 0 else 0
-            throughput_ops = total_rows / total_time_s if total_time_s > 0 else 0
-
-            result_queue.put({
-                'worker_id': worker_id,
-                'total_time': total_time_s,
-                'total_rows': total_rows,
-                'avg_latency_us': avg_latency_us,
-                'throughput_ops': throughput_ops
-            })
-
-        except Exception as e:
-            result_queue.put({'worker_id': worker_id, 'error': str(e)})
 
     def run_test(self, csv_files, batch_size=1, parallel_count=5):
         """运行并行写入测试"""
@@ -406,7 +417,7 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         print(f"启动 {parallel_count} 个工作进程...")
         for i in range(parallel_count):
             p = Process(
-                target=self.worker_process,
+                target=parallel_worker_process,
                 args=(i, worker_files[i], result_queue, base_kf_home)
             )
             processes.append(p)
