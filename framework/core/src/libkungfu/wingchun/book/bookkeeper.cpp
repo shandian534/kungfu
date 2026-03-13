@@ -283,7 +283,7 @@ void Bookkeeper::try_sync_asset_margin(const longfist::types::AssetMargin &asset
   auto old_book = get_book(asset_margin.holder_uid);
   bool asset_margin_changed = old_book->asset_margin.total_asset != asset_margin.total_asset ||   // 总资产
                               old_book->asset_margin.avail_margin != asset_margin.avail_margin || // 可用保证金
-                              old_book->asset_margin.cash_margin != asset_margin.cash_margin || // 融资占用保证金
+                              old_book->asset_margin.cash_margin != asset_margin.cash_margin ||   // 融资占用保证金
                               old_book->asset_margin.short_margin != asset_margin.short_margin || // 融券占用保证金
                               old_book->asset_margin.margin != asset_margin.margin ||             // 总占用保证金
                               old_book->asset_margin.cash_debt != asset_margin.cash_debt ||       // 融资负债

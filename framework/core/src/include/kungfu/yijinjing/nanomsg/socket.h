@@ -94,9 +94,9 @@ DECLARE_PTR(nn_exception)
 
 class socket {
 public:
-  explicit socket(protocol p) : socket(AF_SP, p, MAX_MSG_LENGTH){};
+  explicit socket(protocol p) : socket(AF_SP, p, MAX_MSG_LENGTH) {};
 
-  socket(int domain, protocol p) : socket(domain, p, MAX_MSG_LENGTH){};
+  socket(int domain, protocol p) : socket(domain, p, MAX_MSG_LENGTH) {};
 
   socket(int domain, protocol p, int buffer_size);
 
@@ -154,7 +154,7 @@ private:
 DECLARE_PTR(socket)
 
 struct nanomsg_json : event {
-  explicit nanomsg_json(const std::string &msg) : binding_(nlohmann::json::parse(msg)), msg_(msg){};
+  explicit nanomsg_json(const std::string &msg) : binding_(nlohmann::json::parse(msg)), msg_(msg) {};
 
   [[nodiscard]] int64_t gen_time() const override { return get_meta<int64_t>("gen_time", 0); }
 

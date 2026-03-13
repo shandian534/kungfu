@@ -32,7 +32,7 @@ public:
   ///@param error_info
   /// 当服务器响应发生错误时的具体的错误代码和错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 此函数只有在服务器发生错误时才会调用，一般无需用户处理
-  void OnError(XTPRI *error_info) override{};
+  void OnError(XTPRI *error_info) override {};
 
   /// 订阅行情应答，包括股票、指数和期权
   ///@param ticker 详细的合约订阅情况
@@ -47,7 +47,7 @@ public:
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@param is_last 是否此次取消订阅的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 每条取消订阅的合约均对应一条取消订阅应答，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-  void OnUnSubMarketData(XTPST *ticker, XTPRI *error_info, bool is_last) override{};
+  void OnUnSubMarketData(XTPST *ticker, XTPRI *error_info, bool is_last) override {};
 
   /// 深度行情通知，包含买一卖一队列
   ///@param market_data 行情数据
@@ -66,7 +66,7 @@ public:
   ///@param error_info 订阅合约发生错误时的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@param is_last 是否此次订阅的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 每条订阅的合约均对应一条订阅应答，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-  void OnSubOrderBook(XTPST *ticker, XTPRI *error_info, bool is_last) override{};
+  void OnSubOrderBook(XTPST *ticker, XTPRI *error_info, bool is_last) override {};
 
   /// 退订行情订单簿应答，包括股票、指数和期权
   ///@param ticker 详细的合约取消订阅情况
@@ -74,11 +74,11 @@ public:
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@param is_last 是否此次取消订阅的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 每条取消订阅的合约均对应一条取消订阅应答，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-  void OnUnSubOrderBook(XTPST *ticker, XTPRI *error_info, bool is_last) override{};
+  void OnUnSubOrderBook(XTPST *ticker, XTPRI *error_info, bool is_last) override {};
 
   /// 行情订单簿通知，包括股票、指数和期权
   ///@param order_book 行情订单簿数据，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-  void OnOrderBook(XTPOB *order_book) override{};
+  void OnOrderBook(XTPOB *order_book) override {};
 
   /// 订阅逐笔行情应答，包括股票、指数和期权
   ///@param ticker 详细的合约订阅情况
@@ -93,7 +93,7 @@ public:
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@param is_last 是否此次取消订阅的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 每条取消订阅的合约均对应一条取消订阅应答，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-  void OnUnSubTickByTick(XTPST *ticker, XTPRI *error_info, bool is_last) override{};
+  void OnUnSubTickByTick(XTPST *ticker, XTPRI *error_info, bool is_last) override {};
 
   /// 逐笔行情通知，包括股票、指数和期权
   ///@param tbt_data
@@ -106,7 +106,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnSubscribeAllMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnSubscribeAllMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 退订全市场的股票行情应答
   ///@param exchange_id
@@ -114,7 +114,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 订阅全市场的股票行情订单簿应答
   ///@param exchange_id
@@ -122,7 +122,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnSubscribeAllOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnSubscribeAllOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 退订全市场的股票行情订单簿应答
   ///@param exchange_id
@@ -130,7 +130,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 订阅全市场的股票逐笔行情应答
   ///@param exchange_id
@@ -146,7 +146,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 查询可交易合约的应答
   ///@param ticker_info 可交易合约信息
@@ -161,7 +161,7 @@ public:
   ///@param error_info
   /// 查询合约的最新价格信息时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@param is_last 是否此次查询的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
-  void OnQueryTickersPriceInfo(XTPTPI *ticker_info, XTPRI *error_info, bool is_last) override{};
+  void OnQueryTickersPriceInfo(XTPTPI *ticker_info, XTPRI *error_info, bool is_last) override {};
 
   /// 订阅全市场的期权行情应答
   ///@param exchange_id
@@ -169,7 +169,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnSubscribeAllOptionMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnSubscribeAllOptionMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 退订全市场的期权行情应答
   ///@param exchange_id
@@ -177,7 +177,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllOptionMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllOptionMarketData(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 订阅全市场的期权行情订单簿应答
   ///@param exchange_id
@@ -185,7 +185,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnSubscribeAllOptionOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnSubscribeAllOptionOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 退订全市场的期权行情订单簿应答
   ///@param exchange_id
@@ -193,7 +193,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllOptionOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllOptionOrderBook(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 订阅全市场的期权逐笔行情应答
   ///@param exchange_id
@@ -201,7 +201,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnSubscribeAllOptionTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnSubscribeAllOptionTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 退订全市场的期权逐笔行情应答
   ///@param exchange_id
@@ -209,7 +209,7 @@ public:
   ///@param error_info
   /// 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 需要快速返回
-  void OnUnSubscribeAllOptionTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override{};
+  void OnUnSubscribeAllOptionTickByTick(XTP_EXCHANGE_TYPE exchange_id, XTPRI *error_info) override {};
 
   /// 查询合约完整静态信息的应答
   ///@param ticker_info 合约完整静态信息

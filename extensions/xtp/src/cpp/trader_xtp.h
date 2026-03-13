@@ -55,7 +55,7 @@ public:
   ///@param error_info
   /// 当服务器响应发生错误时的具体的错误代码和错误信息,当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark 此函数只有在服务器发生错误时才会调用，一般无需用户处理
-  void OnError(XTPRI *error_info) override{};
+  void OnError(XTPRI *error_info) override {};
 
   /// 报单通知
   ///@param order_info 订单响应具体信息，用户可以通过order_info.order_xtp_id来管理订单，通过GetClientIDByXTPID() ==
@@ -136,7 +136,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryStructuredFund(XTPStructuredFundInfo *fund_info, XTPRI *error_info, int request_id, bool is_last,
-                             uint64_t session_id) override{};
+                             uint64_t session_id) override {};
 
   /// 请求查询资金划拨订单响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   ///@param fund_transfer_info 查询到的资金账户情况
@@ -147,7 +147,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryFundTransfer(XTPFundTransferNotice *fund_transfer_info, XTPRI *error_info, int request_id, bool is_last,
-                           uint64_t session_id) override{};
+                           uint64_t session_id) override {};
 
   /// 资金划拨通知
   ///@param fund_transfer_info
@@ -157,7 +157,7 @@ public:
   /// 资金划拨订单被拒绝或者发生错误时错误代码和错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
   ///@remark
   /// 当资金划拨订单有状态变化的时候，会被调用，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。所有登录了此用户的客户端都将收到此用户的资金划拨通知。
-  void OnFundTransfer(XTPFundTransferNotice *fund_transfer_info, XTPRI *error_info, uint64_t session_id) override{};
+  void OnFundTransfer(XTPFundTransferNotice *fund_transfer_info, XTPRI *error_info, uint64_t session_id) override {};
 
   /// 请求查询ETF清单文件的响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   ///@param etf_info 查询到的ETF清单文件情况
@@ -168,7 +168,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryETF(XTPQueryETFBaseRsp *etf_info, XTPRI *error_info, int request_id, bool is_last,
-                  uint64_t session_id) override{};
+                  uint64_t session_id) override {};
 
   /// 请求查询ETF股票篮的响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   ///@param etf_component_info 查询到的ETF合约的相关成分股信息
@@ -179,7 +179,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryETFBasket(XTPQueryETFComponentRsp *etf_component_info, XTPRI *error_info, int request_id, bool is_last,
-                        uint64_t session_id) override{};
+                        uint64_t session_id) override {};
 
   /// 请求查询今日新股申购信息列表的响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   ///@param ipo_info 查询到的今日新股申购的一只股票信息
@@ -190,7 +190,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryIPOInfoList(XTPQueryIPOTickerRsp *ipo_info, XTPRI *error_info, int request_id, bool is_last,
-                          uint64_t session_id) override{};
+                          uint64_t session_id) override {};
 
   /// 请求查询用户新股申购额度信息的响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   ///@param quota_info 查询到的用户某个市场的今日新股申购额度信息
@@ -201,7 +201,7 @@ public:
   /// 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
   ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
   void OnQueryIPOQuotaInfo(XTPQueryIPOQuotaRsp *quota_info, XTPRI *error_info, int request_id, bool is_last,
-                           uint64_t session_id) override{};
+                           uint64_t session_id) override {};
 
 private:
   XTP::API::TraderApi *api_{};

@@ -184,7 +184,7 @@ void master::react() {
   events_ | is(Register::tag) | $$(register_app(event));
   events_ | is(RequestCachedDone::tag) | $$(on_request_cached_done(event));
   events_ | is(Ping::tag) | $$(pong(event));
-  events_ | instanceof <journal::frame>() | $$(feed(event));
+  events_ | instanceof<journal::frame>() | $$(feed(event));
 }
 
 void master::on_active() {

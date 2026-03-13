@@ -22,10 +22,10 @@ typedef std::unordered_map<longfist::enums::InstrumentType, AccountingMethod_ptr
 FORWARD_DECLARE_CLASS_PTR(Context)
 class BookListener {
 public:
-  virtual void on_position_sync_reset(const Book &old_book, const Book &new_book){};
-  virtual void on_asset_sync_reset(const longfist::types::Asset &old_asset, const longfist::types::Asset &new_asset){};
+  virtual void on_position_sync_reset(const Book &old_book, const Book &new_book) {};
+  virtual void on_asset_sync_reset(const longfist::types::Asset &old_asset, const longfist::types::Asset &new_asset) {};
   virtual void on_asset_margin_sync_reset(const longfist::types::AssetMargin &old_asset_margin,
-                                          const longfist::types::AssetMargin &new_asset_margin){};
+                                          const longfist::types::AssetMargin &new_asset_margin) {};
 };
 DECLARE_PTR(BookListener)
 

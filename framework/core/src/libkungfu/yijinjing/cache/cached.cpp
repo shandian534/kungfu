@@ -64,10 +64,10 @@ void cached::on_react() {
 void cached::on_start() {
   events_ | is(Channel::tag) | $$(inspect_channel(event->gen_time(), event->data<Channel>()));
   events_ | is(CacheReset::tag) | $$(on_cache_reset(event));
-  events_ | instanceof <journal::frame>() | filter([&](const event_ptr &event) {
-                         auto source_id = event->source();
-                         return source_id != master_home_location_->uid and source_id != master_cmd_location_->uid;
-                       }) | $$(feed(event));
+  events_ | instanceof<journal::frame>() | filter([&](const event_ptr &event) {
+    auto source_id = event->source();
+    return source_id != master_home_location_->uid and source_id != master_cmd_location_->uid;
+  }) | $$(feed(event));
 }
 
 void cached::on_frame() {}

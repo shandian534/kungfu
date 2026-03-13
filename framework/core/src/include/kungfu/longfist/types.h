@@ -528,7 +528,7 @@ KF_DEFINE_PACK_TYPE(                                       //
 
 KF_DEFINE_PACK_TYPE(                                         //
     BlockMessage, 207, PK(block_id), TIMESTAMP(insert_time), //
-    (uint64_t, block_id), // 大宗交易信息id, 用于TD从OrderInput找到此数据
+    (uint64_t, block_id),                                    // 大宗交易信息id, 用于TD从OrderInput找到此数据
     (kungfu::array<char, OPPONENT_SEAT_LEN>, opponent_seat), // 对手方席号
     (uint64_t, match_number),                                // 成交约定号
     (bool, is_specific),                                     // 是否受限(特定)股份
@@ -553,8 +553,8 @@ KF_DEFINE_PACK_TYPE(                                                    //
     (kungfu::array<char, EXTERNAL_ID_LEN>, external_order_id), // 撤单原委托柜台订单id, 新生成撤单委托编号不记录
     (uint64_t, order_action_id),                               // 订单操作ID
     (int32_t, error_id),                                       // 错误ID
-    (kungfu::array<char, ERROR_MSG_LEN>, error_msg), // 错误信息
-    (int64_t, insert_time)                           // 写入时间
+    (kungfu::array<char, ERROR_MSG_LEN>, error_msg),           // 错误信息
+    (int64_t, insert_time)                                     // 写入时间
 );
 
 KF_DEFINE_PACK_TYPE(                                           //

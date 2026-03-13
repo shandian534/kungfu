@@ -48,7 +48,7 @@ public:
   typedef std::unordered_map<uint64_t, state<longfist::types::OrderAction>> OrderActionMap;
   typedef std::unordered_map<uint64_t, state<longfist::types::Trade>> TradeMap;
 
-  explicit Trader(BrokerVendor &vendor) : BrokerService(vendor){};
+  explicit Trader(BrokerVendor &vendor) : BrokerService(vendor) {};
 
   [[nodiscard]] virtual longfist::enums::AccountType get_account_type() const = 0;
 
@@ -105,7 +105,7 @@ public:
 
   [[maybe_unused]] void disable_recover();
 
-  virtual void on_recover(){};
+  virtual void on_recover() {};
 
 protected:
   OrderMap orders_ = {};

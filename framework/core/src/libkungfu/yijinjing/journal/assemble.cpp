@@ -24,7 +24,7 @@ struct noop_publisher : public publisher {
 };
 
 struct assemble_exception : std::runtime_error {
-  explicit assemble_exception(const std::string &msg) : std::runtime_error(msg){};
+  explicit assemble_exception(const std::string &msg) : std::runtime_error(msg) {};
 };
 
 sink::sink() : publisher_(std::make_shared<noop_publisher>()) {}

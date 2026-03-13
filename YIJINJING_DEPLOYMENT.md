@@ -157,6 +157,9 @@ python -m kungfu run service master
 
 # 方法 3：低延迟模式（性能测试推荐）
 kfc run -x service master
+
+# 正确：
+ kfc run -c system -g master -n master
 ```
 
 **Master 启动验证：**

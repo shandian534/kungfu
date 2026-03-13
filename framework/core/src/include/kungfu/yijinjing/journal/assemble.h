@@ -15,7 +15,7 @@ public:
   sink();
   virtual ~sink() = default;
   virtual void put(const data::location_ptr &location, uint32_t dest_id, const frame_ptr &frame) = 0;
-  virtual void close(){};
+  virtual void close() {};
   [[nodiscard]] publisher_ptr get_publisher();
 
 private:
@@ -26,7 +26,7 @@ DECLARE_PTR(sink)
 class [[maybe_unused]] null_sink : public sink {
 public:
   null_sink() = default;
-  void put(const data::location_ptr &location, uint32_t dest_id, const frame_ptr &frame) override{};
+  void put(const data::location_ptr &location, uint32_t dest_id, const frame_ptr &frame) override {};
 };
 
 class [[maybe_unused]] copy_sink : public sink {

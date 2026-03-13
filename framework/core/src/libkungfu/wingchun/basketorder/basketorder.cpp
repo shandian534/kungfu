@@ -12,7 +12,7 @@ using namespace kungfu::yijinjing::data;
 namespace kungfu::wingchun::basketorder {
 BasketOrderState::BasketOrderState(uint32_t source, uint32_t dest, int64_t trigger_time,
                                    const longfist::types::BasketOrder &basket_order)
-    : state_data(state<BasketOrder>(source, dest, trigger_time, basket_order)){};
+    : state_data(state<BasketOrder>(source, dest, trigger_time, basket_order)) {};
 
 void BasketOrderState::update_lastst_order(const longfist::types::Order &order) {
   orders.insert_or_assign(order.order_id, order);

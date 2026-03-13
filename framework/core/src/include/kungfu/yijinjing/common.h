@@ -180,8 +180,8 @@ static constexpr auto error_handler_log = [](const std::string &subscriber_name)
 };
 
 template <typename EventType>
-static constexpr auto instanceof
-    = []() { return filter([](const event_ptr &event) { return dynamic_cast<EventType *>(event.get()) != nullptr; }); };
+static constexpr auto instanceof =
+    []() { return filter([](const event_ptr &event) { return dynamic_cast<EventType *>(event.get()) != nullptr; }); };
 
 static constexpr auto is_custom = []() {
   return filter([](const event_ptr &event) {

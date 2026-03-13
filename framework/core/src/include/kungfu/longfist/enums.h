@@ -121,7 +121,7 @@ enum class MarketType : uint8_t {
   INE,   ///< 上期能源
   SSE,   ///< 上交所
   SZSE,  ///< 深交所
-  HKEx ///< 港交所(暂时不支持直连港交所, 港交所行情数据通过深交所和上交所的港股通获取, 市场类型为kSZSE/kSSE)
+  HKEx   ///< 港交所(暂时不支持直连港交所, 港交所行情数据通过深交所和上交所的港股通获取, 市场类型为kSZSE/kSSE)
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(MarketType, {
@@ -315,8 +315,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(OrderActionFlag, {
 inline std::ostream &operator<<(std::ostream &os, OrderActionFlag t) { return os << int8_t(t); }
 
 enum class PriceType : int8_t {
-  Limit, // 限价,证券通用
-  Any, // 市价，证券通用，对于股票上海为最优五档剩余撤销，深圳为即时成交剩余撤销，建议客户采用
+  Limit,       // 限价,证券通用
+  Any,         // 市价，证券通用，对于股票上海为最优五档剩余撤销，深圳为即时成交剩余撤销，建议客户采用
   FakBest5,    // 上海深圳最优五档即时成交剩余撤销，不需要报价
   ForwardBest, // 深圳本方方最优价格申报, 不需要报价
   ReverseBest, // 上海最优五档即时成交剩余转限价, 深圳对手方最优价格申报，不需要报价

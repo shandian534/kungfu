@@ -67,7 +67,7 @@ private:
 
 class reader {
 public:
-  explicit reader(bool lazy) : lazy_(lazy), current_(nullptr){};
+  explicit reader(bool lazy) : lazy_(lazy), current_(nullptr) {};
 
   ~reader();
 
