@@ -31,7 +31,10 @@ except ImportError as e:
 class SequentialWriteTest:
     """顺序写入测试"""
 
-    def __init__(self, kf_home='/Users/shandian/kungfu'):
+    def __init__(self, kf_home=None):
+        # 优先使用环境变量 KF_HOME，否则使用默认路径
+        if kf_home is None:
+            kf_home = os.getenv('KF_HOME', '/Users/shandian/kungfu')
         self.kf_home = kf_home
         self.monitor = None  # 简化版移除监控
         self.apprentice = None
@@ -42,7 +45,7 @@ class SequentialWriteTest:
         # 使用唯一的 location 标识，避免与 master (system/master/master) 冲突
         location = yjj.location(
             lf.enums.mode.LIVE,
-            lf.enums.category.SERVICE,
+            lf.enums.category.STRATEGY,
             'perf_test',
             'app',
             locator
