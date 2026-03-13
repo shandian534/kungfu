@@ -81,6 +81,12 @@ export KF_HOME=/Users/shandian/kungfu
 Apprentice 注册成功!
 写入完成，耗时: 6.08秒
 
+如果有timeout
+
+rm -rf "/Users/shandian/kungfu/runtime/strategy/perf_test/app/journal/live/"*  
+
+  根本原因： 909 个累积的 journal 文件（~909 MB）导致 Apprentice 启动时处理历史数据超时  
+
 
 
 
