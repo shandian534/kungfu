@@ -78,7 +78,7 @@ def csv_to_quote(csv_row):
 
     # 只设置最必要的字段
     quote.data_time = int(csv_row['TIME']) * 1000000
-    quote.instrument_id = str(int(csv_row['SYMBOL']))
+    quote.instrument_id = str(csv_row['SYMBOL'])
     quote.last_price = float(csv_row['PRICE'])
 
     return quote
@@ -223,14 +223,14 @@ class YijinjingPerformanceTest:
             ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
             ax1.set_ylabel('usage of CPU (%)')
             ax1.grid(True, alpha=0.3)
-            ax1.legend(loc='upper right')
+            ax1.legend(loc='upper right', labelcolor='red')
 
             # 内存使用率曲线
             ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
             ax2.set_xlabel('time (s)')
             ax2.set_ylabel('usage of memory (%)')
             ax2.grid(True, alpha=0.3)
-            ax2.legend(loc='upper right')
+            ax2.legend(loc='upper right', labelcolor='blue')
 
             # 添加统计信息
             cpu_avg = resource_data['cpu'].mean()
@@ -309,26 +309,38 @@ class SequentialWriteTest(YijinjingPerformanceTest):
         print("开始资源监控...")
         self.monitor.start()
 
-        # 执行写入（批量写入）
+        # 执行写入（批量写入，分离解析和写入时间）
         print(f"开始写入数据... (批次大小: {batch_size})")
-        start_time = time.time_ns()
+
+        # 时间统计
+        parse_time_ns = 0  # CSV解析总时间
+        write_time_ns = 0  # 数据库写入总时间
         total_rows = 0
         batch = []
         current_time = time.time_ns()
 
         for csv_file in csv_files:
+            # 解析CSV
+            parse_start = time.time_ns()
             df = pd.read_csv(csv_file)
+            quotes = []
             for _, row in df.iterrows():
-                quote = csv_to_quote(row)
-                batch.append(quote)
+                quotes.append(csv_to_quote(row))
+            parse_end = time.time_ns()
+            parse_time_ns += (parse_end - parse_start)
 
-                # 批量写入
+            # 批量写入
+            write_start = time.time_ns()
+            for quote in quotes:
+                batch.append(quote)
                 if len(batch) >= batch_size:
                     for q in batch:
                         writer.write(current_time, q)
                         total_rows += 1
                     batch.clear()
                     current_time = time.time_ns()
+            write_end = time.time_ns()
+            write_time_ns += (write_end - write_start)
 
             # 每处理100个文件输出进度
             if (csv_files.index(csv_file) + 1) % 100 == 0:
@@ -341,14 +353,14 @@ class SequentialWriteTest(YijinjingPerformanceTest):
                 writer.write(current_time, q)
                 total_rows += 1
 
-        end_time = time.time_ns()
-
         # 停止监控
         self.monitor.stop()
 
         # 计算指标
-        total_time_s = (end_time - start_time) / 1e9
-        avg_latency_us = (end_time - start_time) / total_rows / 1000 if total_rows > 0 else 0
+        parse_time_s = parse_time_ns / 1e9
+        write_time_s = write_time_ns / 1e9
+        total_time_s = parse_time_s + write_time_s
+        avg_latency_us = write_time_ns / total_rows / 1000 if total_rows > 0 else 0
         throughput_ops = total_rows / total_time_s if total_time_s > 0 else 0
 
         # 记录结果
@@ -357,6 +369,8 @@ class SequentialWriteTest(YijinjingPerformanceTest):
             'batch_size': batch_size,
             'parallel_count': 1,
             'total_time': total_time_s,
+            'parse_time': parse_time_s,
+            'write_time': write_time_s,
             'total_rows': total_rows,
             'avg_latency_us': avg_latency_us,
             'throughput_ops': throughput_ops,
@@ -367,6 +381,8 @@ class SequentialWriteTest(YijinjingPerformanceTest):
         print(f"\n{'='*60}")
         print(f"测试结果:")
         print(f"  总行数: {total_rows}")
+        print(f"  CSV解析时间: {parse_time_s:.2f}秒 ({parse_time_s/total_time_s*100:.1f}%)")
+        print(f"  数据库写入时间: {write_time_s:.2f}秒 ({write_time_s/total_time_s*100:.1f}%)")
         print(f"  总耗时: {total_time_s:.2f}秒")
         print(f"  吞吐量: {throughput_ops:.0f} ops")
         print(f"  平均延迟: {avg_latency_us:.2f}微秒")
@@ -412,25 +428,35 @@ def parallel_worker_process(worker_id, csv_files, result_queue, kf_home, batch_s
 
         writer = apprentice.io_device.open_writer(0)
 
-        # 执行批量写入并测量
-        start_time = time.time_ns()
+        # 执行批量写入并测量（分离解析和写入时间）
+        parse_time_ns = 0  # CSV解析总时间
+        write_time_ns = 0  # 数据库写入总时间
         total_rows = 0
         batch = []
         current_time = time.time_ns()
 
         for csv_file in csv_files:
+            # 解析CSV
+            parse_start = time.time_ns()
             df = pd.read_csv(csv_file)
+            quotes = []
             for _, row in df.iterrows():
-                quote = csv_to_quote(row)
-                batch.append(quote)
+                quotes.append(csv_to_quote(row))
+            parse_end = time.time_ns()
+            parse_time_ns += (parse_end - parse_start)
 
-                # 批量写入
+            # 批量写入
+            write_start = time.time_ns()
+            for quote in quotes:
+                batch.append(quote)
                 if len(batch) >= batch_size:
                     for q in batch:
                         writer.write(current_time, q)
                         total_rows += 1
                     batch.clear()
                     current_time = time.time_ns()
+            write_end = time.time_ns()
+            write_time_ns += (write_end - write_start)
 
         # 写入剩余数据
         if batch:
@@ -438,15 +464,18 @@ def parallel_worker_process(worker_id, csv_files, result_queue, kf_home, batch_s
                 writer.write(current_time, q)
                 total_rows += 1
 
-        end_time = time.time_ns()
-
-        total_time_s = (end_time - start_time) / 1e9
-        avg_latency_us = (end_time - start_time) / total_rows / 1000 if total_rows > 0 else 0
+        # 计算时间
+        parse_time_s = parse_time_ns / 1e9
+        write_time_s = write_time_ns / 1e9
+        total_time_s = parse_time_s + write_time_s
+        avg_latency_us = write_time_ns / total_rows / 1000 if total_rows > 0 else 0
         throughput_ops = total_rows / total_time_s if total_time_s > 0 else 0
 
         result_queue.put({
             'worker_id': worker_id,
             'total_time': total_time_s,
+            'parse_time': parse_time_s,
+            'write_time': write_time_s,
             'total_rows': total_rows,
             'avg_latency_us': avg_latency_us,
             'throughput_ops': throughput_ops
@@ -532,6 +561,8 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         # 计算总体指标
         total_ops = sum(r.get('throughput_ops', 0) for r in success_results)
         total_rows_all = sum(r.get('total_rows', 0) for r in success_results)
+        total_parse_time = sum(r.get('parse_time', 0) for r in success_results)
+        total_write_time = sum(r.get('write_time', 0) for r in success_results)
         max_time = max(r.get('total_time', 0) for r in success_results)
         avg_latency = sum(r.get('avg_latency_us', 0) for r in success_results) / len(success_results)
 
@@ -540,6 +571,8 @@ class ParallelWriteTest(YijinjingPerformanceTest):
             'batch_size': batch_size,
             'parallel_count': parallel_count,
             'total_time': max_time,
+            'parse_time': total_parse_time,
+            'write_time': total_write_time,
             'total_rows': total_rows_all,
             'avg_latency_us': avg_latency,
             'throughput_ops': total_ops,
@@ -551,6 +584,8 @@ class ParallelWriteTest(YijinjingPerformanceTest):
         print(f"\n{'='*60}")
         print(f"测试结果:")
         print(f"  总行数: {total_rows_all}")
+        print(f"  CSV解析时间: {total_parse_time:.2f}秒 ({total_parse_time/max_time*100:.1f}%)")
+        print(f"  数据库写入时间: {total_write_time:.2f}秒 ({total_write_time/max_time*100:.1f}%)")
         print(f"  总耗时: {max_time:.2f}秒")
         print(f"  总吞吐量: {total_ops:.0f} ops")
         print(f"  平均延迟: {avg_latency:.2f}微秒")
