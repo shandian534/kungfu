@@ -26,8 +26,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
-# 设置中文字体（macOS 系统字体）
-plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Heiti SC', 'STHeiti', 'Arial Unicode MS', 'sans-serif']
+# 设置字体
+plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.size'] = 12
 
@@ -226,7 +226,7 @@ class BasePerformanceTest:
             # CPU使用率曲线
             ax1.plot(resource_data['time'], resource_data['cpu'],
                     color='#DC143C', linewidth=2, label='CPU Usage(%)')
-            ax1.set_ylabel('CPU使用率(%)', fontsize=13, fontweight='bold')
+            ax1.set_ylabel('CPU Usage(%)', fontsize=15, fontweight='bold', color='#DC143C')
             ax1.grid(True, linestyle='--', alpha=0.3)
             ax1.tick_params(axis='both', labelsize=11)
             ax1.set_ylim(0, max(100, resource_data['cpu'].max() * 1.1))
@@ -234,23 +234,23 @@ class BasePerformanceTest:
             # 图例放在左上角，样式与 2.jpg 一致
             legend1 = ax1.legend(loc='upper left', frameon=True,
                                 facecolor='white', edgecolor='gray',
-                                framealpha=0.9, fontsize=11)
+                                framealpha=0.9, fontsize=15)
             plt.setp(legend1.get_texts(), color='#DC143C', fontweight='bold')
 
             # 内存使用率曲线
             ax2.plot(resource_data['time'], resource_data['memory'],
-                    color='#1E90FF', linewidth=2, label='Memory Usage(%)')
-            ax2.set_xlabel('Time(s)', fontsize=13, fontweight='bold')
-            ax2.set_ylabel('内存使用率(%)', fontsize=13, fontweight='bold')
+                    color='#0000CD', linewidth=2, label='Memory Usage(%)')
+            ax2.set_xlabel('Time(s)', fontsize=15, fontweight='bold')
+            ax2.set_ylabel('Memory Usage(%)', fontsize=15, fontweight='bold', color='#0000CD')
             ax2.grid(True, linestyle='--', alpha=0.3)
             ax2.tick_params(axis='both', labelsize=11)
             ax2.set_ylim(0, max(100, resource_data['memory'].max() * 1.1))
 
-            # 图例放在左上角，样式与 2.jpg 一致
-            legend2 = ax2.legend(loc='upper left', frameon=True,
+            # 图例放在右边
+            legend2 = ax2.legend(loc='upper right', frameon=True,
                                 facecolor='white', edgecolor='gray',
-                                framealpha=0.9, fontsize=11)
-            plt.setp(legend2.get_texts(), color='#1E90FF', fontweight='bold')
+                                framealpha=0.9, fontsize=15)
+            plt.setp(legend2.get_texts(), color='#0000CD', fontweight='bold')
 
             plt.tight_layout()
 
