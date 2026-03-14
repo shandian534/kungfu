@@ -698,10 +698,10 @@ class ParallelWriteTest(BasePerformanceTest):
             print("错误: 所有工作进程都失败了")
             return None
 
-        # 计算总体指标
+        # 计算总体指标（并行测试取最大时间，不累加）
         total_rows_all = sum(r.get('total_rows', 0) for r in success_results)
-        total_parse_time = sum(r.get('parse_time', 0) for r in success_results)
-        total_write_time = sum(r.get('write_time', 0) for r in success_results)
+        max_parse_time = max(r.get('parse_time', 0) for r in success_results)
+        max_write_time = max(r.get('write_time', 0) for r in success_results)
         max_time = max(r.get('total_time', 0) for r in success_results)
         total_ops = sum(r.get('throughput_ops', 0) for r in success_results)
         avg_latency = sum(r.get('avg_latency_us', 0) for r in success_results) / len(success_results)
@@ -711,8 +711,8 @@ class ParallelWriteTest(BasePerformanceTest):
             'batch_size': 1,
             'parallel_count': parallel_count,
             'total_time': max_time,
-            'parse_time': total_parse_time,
-            'write_time': total_write_time,
+            'parse_time': max_parse_time,
+            'write_time': max_write_time,
             'total_rows': total_rows_all,
             'avg_latency_us': avg_latency,
             'throughput_ops': total_ops,
@@ -724,8 +724,8 @@ class ParallelWriteTest(BasePerformanceTest):
         print(f"\n{'='*60}")
         print(f"测试结果:")
         print(f"  总行数: {total_rows_all}")
-        print(f"  CSV解析时间: {total_parse_time:.2f}秒 ({total_parse_time/max_time*100:.1f}%)")
-        print(f"  数据库写入时间: {total_write_time:.2f}秒 ({total_write_time/max_time*100:.1f}%)")
+        print(f"  CSV解析时间: {max_parse_time:.2f}秒 ({max_parse_time/max_time*100:.1f}%)")
+        print(f"  数据库写入时间: {max_write_time:.2f}秒 ({max_write_time/max_time*100:.1f}%)")
         print(f"  总耗时: {max_time:.2f}秒")
         print(f"  总吞吐量: {total_ops:.0f} ops")
         print(f"  平均延迟: {avg_latency:.2f}微秒")
