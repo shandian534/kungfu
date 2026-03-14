@@ -231,8 +231,8 @@ class BasePerformanceTest:
             ax1.tick_params(axis='both', labelsize=11)
             ax1.set_ylim(0, max(100, resource_data['cpu'].max() * 1.1))
 
-            # 图例放在左上角，样式与 2.jpg 一致
-            legend1 = ax1.legend(loc='upper left', frameon=True,
+            # 图例自动选择最佳位置
+            legend1 = ax1.legend(loc='best', frameon=True,
                                 facecolor='white', edgecolor='gray',
                                 framealpha=0.9, fontsize=15)
             plt.setp(legend1.get_texts(), color='#DC143C', fontweight='bold')
@@ -246,8 +246,8 @@ class BasePerformanceTest:
             ax2.tick_params(axis='both', labelsize=11)
             ax2.set_ylim(0, max(100, resource_data['memory'].max() * 1.1))
 
-            # 图例放在右边
-            legend2 = ax2.legend(loc='upper right', frameon=True,
+            # 图例自动选择最佳位置
+            legend2 = ax2.legend(loc='best', frameon=True,
                                 facecolor='white', edgecolor='gray',
                                 framealpha=0.9, fontsize=15)
             plt.setp(legend2.get_texts(), color='#0000CD', fontweight='bold')
@@ -539,8 +539,12 @@ class BatchWriteTest(BasePerformanceTest):
 def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
     """并行工作进程（每个进程处理分配的文件）"""
     try:
-        # 重新导入模块
+        # 使用原始 print 函数
+        import builtins
         import sys
+        _print = builtins.print
+
+        # 重新导入模块
         sys.path.insert(0, '/Users/shandian/out/kungfu/framework/core/build/python')
         import pykungfu
         lf = pykungfu.longfist
@@ -579,7 +583,7 @@ def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
             file_name = os.path.basename(csv_file)
 
             # 显示当前文件进度（带worker标识）
-            print(f"[Worker-{worker_id}] [{i}/{len(csv_files)}] {file_name}")
+            _print(f"[Worker-{worker_id}] [{i}/{len(csv_files)}] {file_name}")
 
             # 解析文件
             parse_start = time.time_ns()
