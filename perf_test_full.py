@@ -223,14 +223,16 @@ class YijinjingPerformanceTest:
             ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
             ax1.set_ylabel('usage of CPU (%)')
             ax1.grid(True, alpha=0.3)
-            ax1.legend(loc='upper right', labelcolor='red')
+            legend1 = ax1.legend(loc='upper right')
+            plt.setp(legend1.get_texts(), color='red')
 
             # 内存使用率曲线
             ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
             ax2.set_xlabel('time (s)')
             ax2.set_ylabel('usage of memory (%)')
             ax2.grid(True, alpha=0.3)
-            ax2.legend(loc='upper right', labelcolor='blue')
+            legend2 = ax2.legend(loc='upper right')
+            plt.setp(legend2.get_texts(), color='blue')
 
             # 添加统计信息
             cpu_avg = resource_data['cpu'].mean()
