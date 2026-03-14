@@ -24,10 +24,21 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+
+# 设置中文字体（macOS 系统字体）
+plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Heiti SC', 'STHeiti', 'Arial Unicode MS', 'sans-serif']
+plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['font.size'] = 12
 
 # 强制刷新输出
 sys.stdout.reconfigure(line_buffering=True)
-print = lambda *args, **kwargs: __builtins__.print(*args, **kwargs, flush=True)
+# 自定义 print 函数，支持已有的 flush 参数
+def _print(*args, **kwargs):
+    if 'flush' not in kwargs:
+        kwargs['flush'] = True
+    return __builtins__.print(*args, **kwargs)
+print = _print
 
 # 添加功夫核心库路径
 kungfu_core_path = '/Users/shandian/out/kungfu/framework/core/build/python'
@@ -209,32 +220,42 @@ class BasePerformanceTest:
     def _save_resource_chart(self, resource_data, results_dir, timestamp):
         """保存资源监控图表"""
         try:
+            # 创建图表，参考 2.jpg 的样式
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
-            ax1.plot(resource_data['time'], resource_data['cpu'], 'r-', label='usage of CPU(%)')
-            ax1.set_ylabel('usage of CPU (%)')
-            ax1.grid(True, alpha=0.3)
-            legend1 = ax1.legend(loc='upper right')
-            plt.setp(legend1.get_texts(), color='red')
+            # CPU使用率曲线
+            ax1.plot(resource_data['time'], resource_data['cpu'],
+                    color='#DC143C', linewidth=2, label='CPU Usage(%)')
+            ax1.set_ylabel('CPU使用率(%)', fontsize=13, fontweight='bold')
+            ax1.grid(True, linestyle='--', alpha=0.3)
+            ax1.tick_params(axis='both', labelsize=11)
+            ax1.set_ylim(0, max(100, resource_data['cpu'].max() * 1.1))
 
-            ax2.plot(resource_data['time'], resource_data['memory'], 'b-', label='usage of memory(%)')
-            ax2.set_xlabel('time (s)')
-            ax2.set_ylabel('usage of memory (%)')
-            ax2.grid(True, alpha=0.3)
-            legend2 = ax2.legend(loc='upper right')
-            plt.setp(legend2.get_texts(), color='blue')
+            # 图例放在左上角，样式与 2.jpg 一致
+            legend1 = ax1.legend(loc='upper left', frameon=True,
+                                facecolor='white', edgecolor='gray',
+                                framealpha=0.9, fontsize=11)
+            plt.setp(legend1.get_texts(), color='#DC143C', fontweight='bold')
 
-            cpu_avg = resource_data['cpu'].mean()
-            cpu_max = resource_data['cpu'].max()
+            # 内存使用率曲线
+            ax2.plot(resource_data['time'], resource_data['memory'],
+                    color='#1E90FF', linewidth=2, label='Memory Usage(%)')
+            ax2.set_xlabel('Time(s)', fontsize=13, fontweight='bold')
+            ax2.set_ylabel('内存使用率(%)', fontsize=13, fontweight='bold')
+            ax2.grid(True, linestyle='--', alpha=0.3)
+            ax2.tick_params(axis='both', labelsize=11)
+            ax2.set_ylim(0, max(100, resource_data['memory'].max() * 1.1))
 
-            ax1.text(0.02, 0.98, f'Avg: {cpu_avg:.1f}% | Max: {cpu_max:.1f}%',
-                    transform=ax1.transAxes, verticalalignment='top',
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            # 图例放在左上角，样式与 2.jpg 一致
+            legend2 = ax2.legend(loc='upper left', frameon=True,
+                                facecolor='white', edgecolor='gray',
+                                framealpha=0.9, fontsize=11)
+            plt.setp(legend2.get_texts(), color='#1E90FF', fontweight='bold')
 
             plt.tight_layout()
 
             chart_file = os.path.join(results_dir, f'{self.test_name}_{timestamp}.png')
-            plt.savefig(chart_file, dpi=150, bbox_inches='tight')
+            plt.savefig(chart_file, dpi=150, bbox_inches='tight', facecolor='white')
             plt.close(fig)
 
             return chart_file
@@ -301,12 +322,20 @@ class SequentialWriteTest(BasePerformanceTest):
 
         # 执行写入（每次处理1个文件）
         print(f"开始写入数据... (每次处理1个文件)")
+        print(f"总文件数: {file_count}")
+        print()
 
         parse_time_ns = 0
         write_time_ns = 0
         total_rows = 0
 
         for i, csv_file in enumerate(csv_files, 1):
+            file_name = os.path.basename(csv_file)
+
+            # 显示当前文件进度
+            progress_pct = i * 100 // file_count
+            print(f"\r[{progress_pct:3d}%] [{i}/{file_count}] {file_name:<30}", end='', flush=True)
+
             # 解析单个文件
             parse_start = time.time_ns()
             df = pd.read_csv(csv_file)
@@ -325,9 +354,7 @@ class SequentialWriteTest(BasePerformanceTest):
             write_end = time.time_ns()
             write_time_ns += (write_end - write_start)
 
-            # 每处理100个文件输出进度
-            if i % 100 == 0:
-                print(f"已处理: {i}/{file_count} 文件")
+        print()  # 换行
 
         # 停止监控
         self.monitor.stop()
@@ -422,6 +449,8 @@ class BatchWriteTest(BasePerformanceTest):
 
         # 执行写入（每次处理N个文件）
         print(f"开始写入数据... (每次处理{batch_size}个文件)")
+        print(f"总文件数: {file_count}")
+        print()
 
         parse_time_ns = 0
         write_time_ns = 0
@@ -433,15 +462,23 @@ class BatchWriteTest(BasePerformanceTest):
             batch_files = csv_files[processed:processed + batch_size]
             batch_count = len(batch_files)
 
-            # 解析批次中所有文件
-            parse_start = time.time_ns()
+            # 解析批次中所有文件（逐个显示进度）
             all_quotes = []
             for csv_file in batch_files:
+                file_name = os.path.basename(csv_file)
+
+                # 显示当前文件进度
+                progress_pct = (processed + 1) * 100 // file_count
+                print(f"\r[{progress_pct:3d}%] [{processed+1}/{file_count}] 解析: {file_name:<30}", end='', flush=True)
+
+                parse_start = time.time_ns()
                 df = pd.read_csv(csv_file)
                 for _, row in df.iterrows():
                     all_quotes.append(csv_to_quote(row))
-            parse_end = time.time_ns()
-            parse_time_ns += (parse_end - parse_start)
+                parse_end = time.time_ns()
+                parse_time_ns += (parse_end - parse_start)
+
+                processed += 1
 
             # 写入批次中所有数据
             write_start = time.time_ns()
@@ -452,8 +489,11 @@ class BatchWriteTest(BasePerformanceTest):
             write_end = time.time_ns()
             write_time_ns += (write_end - write_start)
 
-            processed += batch_count
-            print(f"已处理: {processed}/{file_count} 文件 (本批次: {batch_count}个)")
+            # 显示批次写入完成
+            progress_pct = processed * 100 // file_count
+            print(f"\r[{progress_pct:3d}%] [{processed}/{file_count}] 写入批次完成 ({batch_count}个文件)   ", end='', flush=True)
+
+        print()  # 换行
 
         # 停止监控
         self.monitor.stop()
@@ -535,7 +575,12 @@ def parallel_worker_process(worker_id, csv_files, result_queue, kf_home):
         total_rows = 0
         current_time = time.time_ns()
 
-        for csv_file in csv_files:
+        for i, csv_file in enumerate(csv_files, 1):
+            file_name = os.path.basename(csv_file)
+
+            # 显示当前文件进度（带worker标识）
+            print(f"[Worker-{worker_id}] [{i}/{len(csv_files)}] {file_name}")
+
             # 解析文件
             parse_start = time.time_ns()
             df = pd.read_csv(csv_file)
@@ -700,6 +745,8 @@ TEST_SCENARIOS = [
     ('S4_顺序_5000文件', 5000, 1, 'sequential'),
 
     # === 批量写入（每次N个文件）===
+    ('B10_批量10_10文件', 10, 10, 'batch'),
+    ('B100_批量100_10文件', 10, 100, 'batch'),
     ('B10_批量10_1000文件', 1000, 10, 'batch'),
     ('B100_批量100_1000文件', 1000, 100, 'batch'),
     ('B10_批量10_3000文件', 3000, 10, 'batch'),
@@ -708,6 +755,8 @@ TEST_SCENARIOS = [
     ('B100_批量100_5000文件', 5000, 100, 'batch'),
 
     # === 并行写入（N个进程，每个1个文件）===
+    ('P5_并行5_10文件', 10, 5, 'parallel'),
+    ('P10_并行10_10文件', 10, 10, 'parallel'),
     ('P5_并行5_1000文件', 1000, 5, 'parallel'),
     ('P10_并行10_1000文件', 1000, 10, 'parallel'),
     ('P5_并行5_3000文件', 3000, 5, 'parallel'),
