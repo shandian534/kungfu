@@ -140,13 +140,13 @@ class ResourceMonitor:
                 else:
                     # 多进程模式：监控主进程 + 所有子进程
                     total_cpu = 0
-                    total_memory = 0
+                    total_memory_percent = 0
                     alive_children = []
 
                     # 监控主进程
                     try:
                         total_cpu += self.main_process.cpu_percent(interval=self.interval)
-                        total_memory += self.main_process.memory_info().rss
+                        total_memory_percent += self.main_process.memory_percent()
                     except psutil.NoSuchProcess:
                         pass
 
@@ -155,15 +155,13 @@ class ResourceMonitor:
                         try:
                             if child_proc.is_running():
                                 total_cpu += child_proc.cpu_percent(interval=self.interval)
-                                total_memory += child_proc.memory_info().rss
+                                total_memory_percent += child_proc.memory_percent()
                                 alive_children.append(child_proc)
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
 
                     self.child_processes = alive_children
 
-                    # 计算总内存百分比（相对于总内存）
-                    total_memory_percent = (total_memory / psutil.virtual_memory().total) * 100
                     cpu_percent = total_cpu
                     memory_percent = total_memory_percent
 
@@ -275,7 +273,11 @@ class BasePerformanceTest:
             ax1.set_ylabel('CPU Usage(%)', fontsize=15, fontweight='bold', color='#DC143C')
             ax1.grid(True, linestyle='--', alpha=0.3)
             ax1.tick_params(axis='both', labelsize=11)
-            ax1.set_ylim(0, max(100, resource_data['cpu'].max() * 1.1))
+            # 调整 Y 轴范围，让曲线更明显
+            cpu_min = resource_data['cpu'].min()
+            cpu_max = resource_data['cpu'].max()
+            cpu_range = max(cpu_max - cpu_min, cpu_max * 0.1)  # 至少有 10% 的范围
+            ax1.set_ylim(max(0, cpu_min - cpu_range * 0.15), cpu_max + cpu_range * 0.1)
 
             # 图例自动选择最佳位置
             legend1 = ax1.legend(loc='best', frameon=True,
@@ -290,7 +292,11 @@ class BasePerformanceTest:
             ax2.set_ylabel('Memory Usage(%)', fontsize=15, fontweight='bold', color='#0000CD')
             ax2.grid(True, linestyle='--', alpha=0.3)
             ax2.tick_params(axis='both', labelsize=11)
-            ax2.set_ylim(0, max(100, resource_data['memory'].max() * 1.1))
+            # 调整 Y 轴范围，让曲线更明显
+            mem_min = resource_data['memory'].min()
+            mem_max = resource_data['memory'].max()
+            mem_range = max(mem_max - mem_min, mem_max * 0.1)  # 至少有 10% 的范围
+            ax2.set_ylim(max(0, mem_min - mem_range * 0.15), mem_max + mem_range * 0.1)
 
             # 图例自动选择最佳位置
             legend2 = ax2.legend(loc='best', frameon=True,

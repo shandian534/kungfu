@@ -10,10 +10,11 @@ echo "============================================================"
 # 清理 journal 数据（占用最大）
 JOURNAL_DIR="$KF_HOME/runtime/strategy/perf_test/app/journal/live"
 if [ -d "$JOURNAL_DIR" ]; then
-    FILE_COUNT=$(ls "$JOURNAL_DIR" 2>/dev/null | wc -l)
+    FILE_COUNT=$(find "$JOURNAL_DIR" -type f 2>/dev/null | wc -l)
     if [ "$FILE_COUNT" -gt 0 ]; then
         echo "清理 journal 数据: $FILE_COUNT 个文件"
-        rm -rf "$JOURNAL_DIR"/*
+        # 使用 find 避免参数列表过长
+        find "$JOURNAL_DIR" -type f -delete 2>/dev/null
         echo "✓ journal 已清理"
     else
         echo "journal 目录为空，跳过"
@@ -25,15 +26,18 @@ fi
 # 清理日志（可选）
 LOG_DIR="$KF_HOME/runtime/strategy/perf_test/app/log/live"
 if [ -d "$LOG_DIR" ]; then
-    echo "清理日志文件..."
-    rm -f "$LOG_DIR"/*
-    echo "✓ 日志已清理"
+    LOG_COUNT=$(find "$LOG_DIR" -type f 2>/dev/null | wc -l)
+    if [ "$LOG_COUNT" -gt 0 ]; then
+        echo "清理日志文件: $LOG_COUNT 个"
+        find "$LOG_DIR" -type f -delete 2>/dev/null
+        echo "✓ 日志已清理"
+    fi
 fi
 
 # 显示测试结果（不自动删除）
 RESULT_DIR="$KF_HOME/test_results"
 if [ -d "$RESULT_DIR" ]; then
-    RESULT_COUNT=$(ls "$RESULT_DIR"/*.json 2>/dev/null | wc -l)
+    RESULT_COUNT=$(find "$RESULT_DIR" -name "*.json" -type f 2>/dev/null | wc -l)
     echo ""
     echo "测试结果文件: $RESULT_COUNT 个"
     echo "目录: $RESULT_DIR"
