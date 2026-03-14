@@ -94,20 +94,35 @@ class TradeDataSelector:
 # ============================================================================
 
 class ResourceMonitor:
-    """资源监控器"""
+    """资源监控器 - 支持监控主进程和子进程"""
 
-    def __init__(self, interval=0.1):
+    def __init__(self, interval=0.5):
         self.interval = interval
         self.running = False
         self.data = {'time': [], 'cpu': [], 'memory': []}
-        self.process = psutil.Process()
+        self.main_process = psutil.Process()
+        self.child_processes = []  # 子进程列表
         self.thread = None
         self.start_time = 0
+        self.mode = 'single'  # 'single' 或 'multi'
+
+    def set_child_pids(self, pids):
+        """设置要监控的子进程 PID 列表"""
+        self.child_processes = []
+        for pid in pids:
+            try:
+                proc = psutil.Process(pid)
+                self.child_processes.append(proc)
+            except psutil.NoSuchProcess:
+                pass
+        self.mode = 'multi' if self.child_processes else 'single'
 
     def start(self):
         """开始监控"""
         self.running = True
         self.start_time = time.time()
+        # 初始化主进程 CPU 基准值
+        self.main_process.cpu_percent(interval=0.1)
         self.thread = threading.Thread(target=self._monitor)
         self.thread.daemon = True
         self.thread.start()
@@ -117,14 +132,45 @@ class ResourceMonitor:
         while self.running:
             try:
                 current_time = time.time() - self.start_time
-                cpu_percent = self.process.cpu_percent()
-                memory_percent = self.process.memory_percent()
+
+                if self.mode == 'single':
+                    # 单进程模式：只监控主进程
+                    cpu_percent = self.main_process.cpu_percent(interval=self.interval)
+                    memory_percent = self.main_process.memory_percent()
+                else:
+                    # 多进程模式：监控主进程 + 所有子进程
+                    total_cpu = 0
+                    total_memory = 0
+                    alive_children = []
+
+                    # 监控主进程
+                    try:
+                        total_cpu += self.main_process.cpu_percent(interval=self.interval)
+                        total_memory += self.main_process.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        pass
+
+                    # 监控子进程
+                    for child_proc in self.child_processes:
+                        try:
+                            if child_proc.is_running():
+                                total_cpu += child_proc.cpu_percent(interval=self.interval)
+                                total_memory += child_proc.memory_info().rss
+                                alive_children.append(child_proc)
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
+
+                    self.child_processes = alive_children
+
+                    # 计算总内存百分比（相对于总内存）
+                    total_memory_percent = (total_memory / psutil.virtual_memory().total) * 100
+                    cpu_percent = total_cpu
+                    memory_percent = total_memory_percent
 
                 self.data['time'].append(current_time)
                 self.data['cpu'].append(cpu_percent)
                 self.data['memory'].append(memory_percent)
 
-                time.sleep(self.interval)
             except Exception as e:
                 print(f"[ResourceMonitor] 监控异常: {e}")
                 break
@@ -671,6 +717,11 @@ class ParallelWriteTest(BasePerformanceTest):
             )
             processes.append(p)
             p.start()
+
+        # 将子进程 PID 传递给监控器
+        child_pids = [p.pid for p in processes]
+        self.monitor.set_child_pids(child_pids)
+        print(f"监控 {len(child_pids)} 个子进程的资源使用")
 
         # 等待所有进程完成
         print("等待所有进程完成...")
